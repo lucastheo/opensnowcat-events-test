@@ -83,4 +83,38 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
       expect(matchingScCall![0].event_type).toBe('backend_batch');
     }
   });
+
+  it('processes multi-chunk batches across controller and business layers with chunked external emission', async () => {
+    let activeOscConcurrent = 0;
+    let peakOscConcurrent = 0;
+
+    vi.mocked(openSnowcatClient.emitStructuredEvent).mockImplementation(async () => {
+      activeOscConcurrent++;
+      peakOscConcurrent = Math.max(peakOscConcurrent, activeOscConcurrent);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      activeOscConcurrent--;
+      return true;
+    });
+
+    const req = new NextRequest('http://localhost:4000/api/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: 12 })
+    });
+
+    const response = await POST(req);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body).toEqual({
+      status: 'completed',
+      events_emitted: 12
+    });
+
+    // Peak concurrency for OSC external client cannot exceed CHUNK_SIZE = 5
+    expect(peakOscConcurrent).toBe(5);
+    expect(openSnowcatClient.emitStructuredEvent).toHaveBeenCalledTimes(12);
+    expect(simpleCollectorClient.record).toHaveBeenCalledTimes(12);
+  });
 });
+

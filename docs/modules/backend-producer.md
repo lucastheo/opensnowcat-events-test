@@ -224,7 +224,7 @@ The Business Layer encapsulates all business rules, domain entities, tracking me
   - [`timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts): Generates ISO-8601 timestamps and localized time representations across timezones, triggering dual tracking.
   - [`excuse.service.ts`](../../apps/backend-producer/src/business/services/excuse.service.ts): Randomly selects excuse entities from the domain pool and triggers dual tracking.
   - [`dice.service.ts`](../../apps/backend-producer/src/business/services/dice.service.ts): Rolls polyhedral dice, aggregates totals, and triggers dual tracking.
-  - [`batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts): Dispatches multiple event emissions concurrently to simulate batch load.
+  - [`batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts): Processes bulk events in sequential chunks of 5 (`CHUNK_SIZE = 5`) using `Promise.all` per chunk. This chunked execution pattern prevents socket exhaustion (never exceeding 10 concurrent outgoing sockets for dual emission — 5 to OpenSnowcat and 5 to Simple Collector) and prevents overwhelming downstream consumers like `simple-collector`'s FIFO Promise CSV write queue or OpenSnowcat.
 
 - **Dual Emission Tracking Dispatcher ([`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts)):**
   - Encapsulates dual emission dispatch logic used across all business services.
@@ -324,6 +324,11 @@ The External Layer manages outbound HTTP communication with external services, i
 #### `POST /api/batch`
 - **Controller:** [`src/app/api/batch/route.ts`](../../apps/backend-producer/src/app/api/batch/route.ts)
 - **Schema:** [`src/app/api/batch/schema.ts`](../../apps/backend-producer/src/app/api/batch/schema.ts)
+- **Execution Pattern & Concurrency Control:**
+  - `BatchService` processes bulk events in sequential chunks of 5 (`CHUNK_SIZE = 5`) using `Promise.all` per chunk.
+  - **Architectural Rationale:**
+    - **Prevents Socket Exhaustion:** Dual emission dispatches 2 outbound HTTP requests per event (one to OpenSnowcat `/tp2` and one to Simple Collector `/collect`). Restricting concurrency to chunks of 5 caps active outgoing sockets at 10 simultaneously, preventing socket exhaustion in the Node.js runtime under large batches (up to 1,000 events).
+    - **Protects Downstream Consumers:** Avoids overwhelming downstream systems, particularly `simple-collector`'s sequential FIFO Promise CSV write queue and OpenSnowcat's stream collector pipeline.
 - **Request Body:**
   ```json
   {
@@ -466,7 +471,7 @@ Every source file in the repository has a companion `*.test.ts` file colocated i
 | [`src/business/services/timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts) | [`src/business/services/timestamp.service.test.ts`](../../apps/backend-producer/src/business/services/timestamp.service.test.ts) | Timezone calculations, formatted string output. |
 | [`src/business/services/excuse.service.ts`](../../apps/backend-producer/src/business/services/excuse.service.ts) | [`src/business/services/excuse.service.test.ts`](../../apps/backend-producer/src/business/services/excuse.service.test.ts) | Random selection, non-empty text, pool coverage. |
 | [`src/business/services/dice.service.ts`](../../apps/backend-producer/src/business/services/dice.service.ts) | [`src/business/services/dice.service.test.ts`](../../apps/backend-producer/src/business/services/dice.service.test.ts) | Random range bounds per die side, total sum math. |
-| [`src/business/services/batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts) | [`src/business/services/batch.service.test.ts`](../../apps/backend-producer/src/business/services/batch.service.test.ts) | Bulk event emissions loop, count bounds validation, batch tracking metadata. |
+| [`src/business/services/batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts) | [`src/business/services/batch.service.test.ts`](../../apps/backend-producer/src/business/services/batch.service.test.ts) | Bulk event emissions with chunked execution (`CHUNK_SIZE = 5`), count bounds validation, batch tracking metadata. |
 | [`src/business/domain/calculation.ts`](../../apps/backend-producer/src/business/domain/calculation.ts) | [`src/business/domain/calculation.test.ts`](../../apps/backend-producer/src/business/domain/calculation.test.ts) | Entity creation, properties immutability, helper methods. |
 | [`src/business/domain/timestamp-info.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.ts) | [`src/business/domain/timestamp-info.test.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.test.ts) | TimeLocation creation, properties, timezone validation helper. |
 | [`src/business/domain/excuse.ts`](../../apps/backend-producer/src/business/domain/excuse.ts) | [`src/business/domain/excuse.test.ts`](../../apps/backend-producer/src/business/domain/excuse.test.ts) | Excuse entity creation, text getter, developer excuse quote pool invariants. |

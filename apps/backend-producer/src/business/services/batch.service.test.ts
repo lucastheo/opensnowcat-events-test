@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BatchService, batchService } from './batch.service';
+import { BatchService, batchService, CHUNK_SIZE } from './batch.service';
 import { InvalidBatchCountError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
@@ -16,6 +16,14 @@ describe('BatchService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new BatchService();
+  });
+
+  describe('CHUNK_SIZE Configuration', () => {
+    it('defines CHUNK_SIZE constant as 5', () => {
+      expect(CHUNK_SIZE).toBe(5);
+      expect(BatchService.CHUNK_SIZE).toBe(5);
+      expect(service.CHUNK_SIZE).toBe(5);
+    });
   });
 
   describe('emitBatch Logic & Execution', () => {
@@ -83,6 +91,87 @@ describe('BatchService', () => {
       const uniqueEventIds = new Set(eventIds);
 
       expect(uniqueEventIds.size).toBe(5);
+    });
+
+    it('verifies chunked execution behavior across multiple chunks (count=12 across 3 chunks: 5 + 5 + 2)', async () => {
+      const result = await service.emitBatch({ count: 12 });
+
+      expect(result).toEqual({
+        status: 'completed',
+        events_emitted: 12
+      });
+
+      expect(dispatchDualEmission).toHaveBeenCalledTimes(12);
+
+      const calls = vi.mocked(dispatchDualEmission).mock.calls;
+      const eventIds = calls.map((c) => c[0].eventId);
+      const uniqueEventIds = new Set(eventIds);
+
+      // Verify all 12 events have distinct eventIds
+      expect(uniqueEventIds.size).toBe(12);
+
+      // Verify all 12 events are dispatched with sequential indices (batch_item_1 to batch_item_12)
+      for (let i = 1; i <= 12; i++) {
+        expect(dispatchDualEmission).toHaveBeenNthCalledWith(
+          i,
+          expect.objectContaining({
+            category: 'backend_service',
+            action: 'batch_event',
+            label: `batch_item_${i}`,
+            value: i,
+            eventType: 'backend_batch',
+            eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+            timestamp: expect.any(String)
+          })
+        );
+      }
+    });
+
+    it('limits concurrent executions to CHUNK_SIZE (5) and executes chunks sequentially', async () => {
+      let activeConcurrency = 0;
+      let peakConcurrency = 0;
+      const chunkExecutionOrder: number[][] = [];
+      let currentChunk: number[] = [];
+
+      vi.mocked(dispatchDualEmission).mockImplementation(async (params) => {
+        activeConcurrency++;
+        peakConcurrency = Math.max(peakConcurrency, activeConcurrency);
+        if (typeof params.value === 'number') {
+          currentChunk.push(params.value);
+        }
+
+        // Simulate async I/O delay
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        activeConcurrency--;
+        if (activeConcurrency === 0) {
+          chunkExecutionOrder.push([...currentChunk]);
+          currentChunk = [];
+        }
+
+        return {
+          eventId: params.eventId ?? 'test-event-id',
+          timestamp: params.timestamp ?? '2026-10-11T12:00:00.000Z'
+        };
+      });
+
+      const result = await service.emitBatch({ count: 12 });
+
+      expect(result).toEqual({
+        status: 'completed',
+        events_emitted: 12
+      });
+
+      // Peak concurrency must strictly equal CHUNK_SIZE (5)
+      expect(peakConcurrency).toBe(5);
+      expect(activeConcurrency).toBe(0);
+
+      // Verify chunks were executed in distinct sequential batches: [1..5], [6..10], [11..12]
+      expect(chunkExecutionOrder).toEqual([
+        [1, 2, 3, 4, 5],
+        [6, 7, 8, 9, 10],
+        [11, 12]
+      ]);
     });
   });
 
