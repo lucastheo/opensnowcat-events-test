@@ -18,20 +18,8 @@ export class TimestampService {
     const timestamp = now.toISOString();
     const eventId = crypto.randomUUID();
 
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz,
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-
-    const parts = formatter.formatToParts(now);
-    const getPart = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-    const formattedLocal = `${getPart('day')}/${getPart('month')}/${getPart('year')}, ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formattedLocal = `${pad(now.getUTCDate())}/${pad(now.getUTCMonth() + 1)}/${now.getUTCFullYear()}, ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
 
     await dispatchDualEmission({
       category: 'backend_service',
