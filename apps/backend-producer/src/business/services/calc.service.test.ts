@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CalcService, calcService } from './calc.service';
 import { Calculation } from '@/business/domain/calculation';
+import {
+  DivisionByZeroError,
+  UnsupportedOperatorError
+} from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 vi.mock('@/business/tracking.dispatcher', () => ({
@@ -97,18 +101,20 @@ describe('CalcService', () => {
 
   describe('Error Handling & Invariants', () => {
     it('throws error when dividing by zero (b === 0 && operator === "/")', async () => {
+      await expect(service.calculate({ a: 10, b: 0, operator: '/' })).rejects.toThrow(DivisionByZeroError);
       await expect(service.calculate({ a: 10, b: 0, operator: '/' })).rejects.toThrow('Division by zero');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error on unsupported operator', async () => {
+      await expect(service.calculate({ a: 10, b: 2, operator: '%' })).rejects.toThrow(UnsupportedOperatorError);
       await expect(service.calculate({ a: 10, b: 2, operator: '%' })).rejects.toThrow('Unsupported operator: %');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('never calls external tracking dispatch if an error is thrown', async () => {
-      await expect(service.calculate({ a: 5, b: 0, operator: '/' })).rejects.toThrow();
-      await expect(service.calculate({ a: 5, b: 2, operator: '^' })).rejects.toThrow();
+      await expect(service.calculate({ a: 5, b: 0, operator: '/' })).rejects.toThrow(DivisionByZeroError);
+      await expect(service.calculate({ a: 5, b: 2, operator: '^' })).rejects.toThrow(UnsupportedOperatorError);
 
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });

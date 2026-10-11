@@ -1,4 +1,5 @@
 import { DiceRoll, getSidesNumber, type DiceSides } from '@/business/domain/dice-roll';
+import { InvalidDiceError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 export interface DiceRollParams {
@@ -9,12 +10,12 @@ export interface DiceRollParams {
 export class DiceService {
   async roll({ count = 2, sides = 'd6' }: DiceRollParams = {}): Promise<DiceRoll> {
     if (count < 1 || count > 10 || !Number.isInteger(count)) {
-      throw new Error('Dice count must be between 1 and 10');
+      throw new InvalidDiceError('Dice count must be between 1 and 10');
     }
 
     const sidesNumber = getSidesNumber(sides);
     if (!sidesNumber) {
-      throw new Error(`Unsupported dice sides: ${sides}`);
+      throw new InvalidDiceError(`Unsupported dice sides: ${sides}`);
     }
 
     const rolls: number[] = [];

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST } from './route';
 import { batchService } from '@/business/services/batch.service';
+import { InvalidBatchCountError } from '@/business/errors/business.error';
 
 vi.mock('@/business/services/batch.service', () => ({
   batchService: {
@@ -137,7 +138,7 @@ describe('Batch Controller (POST /api/batch)', () => {
 
   it('returns 400 Bad Request when business service throws bounds error', async () => {
     vi.mocked(batchService.emitBatch).mockRejectedValueOnce(
-      new Error('Batch count must be between 1 and 1000')
+      new InvalidBatchCountError('Batch count must be between 1 and 1000')
     );
 
     const req = new NextRequest('http://localhost:4000/api/batch', {

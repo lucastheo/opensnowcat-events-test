@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DiceService, diceService } from './dice.service';
 import { DiceRoll, type DiceSides } from '@/business/domain/dice-roll';
+import { InvalidDiceError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 vi.mock('@/business/tracking.dispatcher', () => ({
@@ -85,23 +86,30 @@ describe('DiceService', () => {
 
   describe('Validation & Error Handling', () => {
     it('throws error when count is less than 1', async () => {
+      await expect(service.roll({ count: 0 })).rejects.toThrow(InvalidDiceError);
       await expect(service.roll({ count: 0 })).rejects.toThrow('Dice count must be between 1 and 10');
+      await expect(service.roll({ count: -3 })).rejects.toThrow(InvalidDiceError);
       await expect(service.roll({ count: -3 })).rejects.toThrow('Dice count must be between 1 and 10');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error when count is greater than 10', async () => {
+      await expect(service.roll({ count: 11 })).rejects.toThrow(InvalidDiceError);
       await expect(service.roll({ count: 11 })).rejects.toThrow('Dice count must be between 1 and 10');
+      await expect(service.roll({ count: 100 })).rejects.toThrow(InvalidDiceError);
       await expect(service.roll({ count: 100 })).rejects.toThrow('Dice count must be between 1 and 10');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error when count is not an integer', async () => {
+      await expect(service.roll({ count: 2.5 })).rejects.toThrow(InvalidDiceError);
       await expect(service.roll({ count: 2.5 })).rejects.toThrow('Dice count must be between 1 and 10');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error when sides is unsupported', async () => {
+      // @ts-expect-error testing invalid sides runtime validation
+      await expect(service.roll({ sides: 'd1000' })).rejects.toThrow(InvalidDiceError);
       // @ts-expect-error testing invalid sides runtime validation
       await expect(service.roll({ sides: 'd1000' })).rejects.toThrow('Unsupported dice sides: d1000');
       expect(dispatchDualEmission).not.toHaveBeenCalled();

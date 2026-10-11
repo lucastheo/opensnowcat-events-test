@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DiceRequestSchema, type DiceResponseBody } from './schema';
+import { handleRouteError } from '@/app/api/error-handler';
 import { diceService } from '@/business/services/dice.service';
 
 export async function POST(req: NextRequest) {
@@ -31,16 +32,6 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(responsePayload, { status: 200 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    if (
-      message === 'Dice count must be between 1 and 10' ||
-      message.startsWith('Unsupported dice sides')
-    ) {
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-    return NextResponse.json(
-      { error: 'Internal Server Error', message },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }

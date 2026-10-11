@@ -3,6 +3,10 @@ import { NextRequest } from 'next/server';
 import { POST } from './route';
 import { calcService } from '@/business/services/calc.service';
 import { Calculation } from '@/business/domain/calculation';
+import {
+  DivisionByZeroError,
+  UnsupportedOperatorError
+} from '@/business/errors/business.error';
 
 vi.mock('@/business/services/calc.service', () => ({
   calcService: {
@@ -78,7 +82,7 @@ describe('Calc Controller (POST /api/calc)', () => {
   });
 
   it('returns 400 Bad Request when business service throws Division by zero', async () => {
-    vi.mocked(calcService.calculate).mockRejectedValueOnce(new Error('Division by zero'));
+    vi.mocked(calcService.calculate).mockRejectedValueOnce(new DivisionByZeroError());
 
     const req = new NextRequest('http://localhost:4000/api/calc', {
       method: 'POST',
@@ -94,7 +98,7 @@ describe('Calc Controller (POST /api/calc)', () => {
   });
 
   it('returns 400 Bad Request when business service throws Unsupported operator', async () => {
-    vi.mocked(calcService.calculate).mockRejectedValueOnce(new Error('Unsupported operator: %'));
+    vi.mocked(calcService.calculate).mockRejectedValueOnce(new UnsupportedOperatorError('%'));
 
     const req = new NextRequest('http://localhost:4000/api/calc', {
       method: 'POST',

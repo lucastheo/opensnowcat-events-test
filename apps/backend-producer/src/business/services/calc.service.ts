@@ -1,4 +1,8 @@
 import { Calculation } from '@/business/domain/calculation';
+import {
+  DivisionByZeroError,
+  UnsupportedOperatorError
+} from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 export interface CalculateParams {
@@ -22,12 +26,12 @@ export class CalcService {
         break;
       case '/':
         if (b === 0) {
-          throw new Error('Division by zero');
+          throw new DivisionByZeroError();
         }
         result = a / b;
         break;
       default:
-        throw new Error(`Unsupported operator: ${operator}`);
+        throw new UnsupportedOperatorError(operator);
     }
 
     const eventId = crypto.randomUUID();

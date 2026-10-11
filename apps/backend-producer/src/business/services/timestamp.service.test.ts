@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TimestampService, timestampService } from './timestamp.service';
 import { TimeLocation } from '@/business/domain/timestamp-info';
+import { InvalidTimezoneError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 vi.mock('@/business/tracking.dispatcher', () => ({
@@ -71,12 +72,13 @@ describe('TimestampService', () => {
 
   describe('Error Handling', () => {
     it('throws error on invalid timezone string and suppresses tracking', async () => {
+      await expect(service.getTimestamp({ timezone: 'Mars/Curiosity' })).rejects.toThrow(InvalidTimezoneError);
       await expect(service.getTimestamp({ timezone: 'Mars/Curiosity' })).rejects.toThrow('Invalid timezone: Mars/Curiosity');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error for malformed timezone identifiers', async () => {
-      await expect(service.getTimestamp({ timezone: 'Not/A_Real_Timezone' })).rejects.toThrow();
+      await expect(service.getTimestamp({ timezone: 'Not/A_Real_Timezone' })).rejects.toThrow(InvalidTimezoneError);
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
   });

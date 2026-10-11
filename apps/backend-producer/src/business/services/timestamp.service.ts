@@ -1,4 +1,5 @@
 import { TimeLocation, isValidTimezone } from '@/business/domain/timestamp-info';
+import { InvalidTimezoneError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 export interface TimestampParams {
@@ -10,7 +11,7 @@ export class TimestampService {
     const tz = timezone ?? 'UTC';
 
     if (!isValidTimezone(tz)) {
-      throw new Error(`Invalid timezone: ${tz}`);
+      throw new InvalidTimezoneError(tz);
     }
 
     const now = new Date();

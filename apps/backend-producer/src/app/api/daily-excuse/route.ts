@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { type DailyExcuseResponseBody } from './schema';
+import { handleRouteError } from '@/app/api/error-handler';
 import { excuseService } from '@/business/services/excuse.service';
 
 export async function GET() {
@@ -11,10 +12,6 @@ export async function GET() {
     };
     return NextResponse.json(responsePayload, { status: 200 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { error: 'Internal Server Error', message },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }

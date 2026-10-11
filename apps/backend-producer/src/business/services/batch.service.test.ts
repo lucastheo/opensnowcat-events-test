@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BatchService, batchService } from './batch.service';
+import { InvalidBatchCountError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 vi.mock('@/business/tracking.dispatcher', () => ({
@@ -87,17 +88,21 @@ describe('BatchService', () => {
 
   describe('Bounds Checking & Error Handling', () => {
     it('throws error when count is less than 1', async () => {
+      await expect(service.emitBatch({ count: 0 })).rejects.toThrow(InvalidBatchCountError);
       await expect(service.emitBatch({ count: 0 })).rejects.toThrow('Batch count must be between 1 and 1000');
+      await expect(service.emitBatch({ count: -5 })).rejects.toThrow(InvalidBatchCountError);
       await expect(service.emitBatch({ count: -5 })).rejects.toThrow('Batch count must be between 1 and 1000');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error when count is greater than 1000', async () => {
+      await expect(service.emitBatch({ count: 1001 })).rejects.toThrow(InvalidBatchCountError);
       await expect(service.emitBatch({ count: 1001 })).rejects.toThrow('Batch count must be between 1 and 1000');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });
 
     it('throws error when count is not an integer', async () => {
+      await expect(service.emitBatch({ count: 12.5 })).rejects.toThrow(InvalidBatchCountError);
       await expect(service.emitBatch({ count: 12.5 })).rejects.toThrow('Batch count must be between 1 and 1000');
       expect(dispatchDualEmission).not.toHaveBeenCalled();
     });

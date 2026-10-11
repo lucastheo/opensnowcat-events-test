@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { POST } from './route';
 import { timestampService } from '@/business/services/timestamp.service';
 import { TimeLocation } from '@/business/domain/timestamp-info';
+import { InvalidTimezoneError } from '@/business/errors/business.error';
 
 vi.mock('@/business/services/timestamp.service', () => ({
   timestampService: {
@@ -128,7 +129,7 @@ describe('Timestamp Controller (POST /api/timestamp)', () => {
 
   it('returns 400 Bad Request when business service throws Invalid timezone error', async () => {
     vi.mocked(timestampService.getTimestamp).mockRejectedValueOnce(
-      new Error('Invalid timezone: Atlantis/City')
+      new InvalidTimezoneError('Atlantis/City')
     );
 
     const req = new NextRequest('http://localhost:4000/api/timestamp', {

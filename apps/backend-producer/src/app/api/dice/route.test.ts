@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { POST } from './route';
 import { diceService } from '@/business/services/dice.service';
 import { DiceRoll } from '@/business/domain/dice-roll';
+import { InvalidDiceError } from '@/business/errors/business.error';
 
 vi.mock('@/business/services/dice.service', () => ({
   diceService: {
@@ -126,7 +127,7 @@ describe('Dice Controller (POST /api/dice)', () => {
 
   it('returns 400 Bad Request when business service throws bounds error', async () => {
     vi.mocked(diceService.roll).mockRejectedValueOnce(
-      new Error('Dice count must be between 1 and 10')
+      new InvalidDiceError('Dice count must be between 1 and 10')
     );
 
     const req = new NextRequest('http://localhost:4000/api/dice', {
@@ -143,7 +144,7 @@ describe('Dice Controller (POST /api/dice)', () => {
 
   it('returns 400 Bad Request when business service throws unsupported sides error', async () => {
     vi.mocked(diceService.roll).mockRejectedValueOnce(
-      new Error('Unsupported dice sides: d999')
+      new InvalidDiceError('Unsupported dice sides: d999')
     );
 
     const req = new NextRequest('http://localhost:4000/api/dice', {

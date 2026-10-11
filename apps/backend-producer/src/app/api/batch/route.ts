@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BatchRequestSchema, type BatchResponseBody } from './schema';
+import { handleRouteError } from '@/app/api/error-handler';
 import { batchService } from '@/business/services/batch.service';
 
 export async function POST(req: NextRequest) {
@@ -31,13 +32,6 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(responsePayload, { status: 200 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    if (message === 'Batch count must be between 1 and 1000') {
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-    return NextResponse.json(
-      { error: 'Internal Server Error', message },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }

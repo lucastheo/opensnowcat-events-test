@@ -1,3 +1,4 @@
+import { InvalidBatchCountError } from '@/business/errors/business.error';
 import { dispatchDualEmission } from '@/business/tracking.dispatcher';
 
 export interface BatchParams {
@@ -12,7 +13,7 @@ export interface BatchResult {
 export class BatchService {
   async emitBatch({ count = 50 }: BatchParams = {}): Promise<BatchResult> {
     if (count < 1 || count > 1000 || !Number.isInteger(count)) {
-      throw new Error('Batch count must be between 1 and 1000');
+      throw new InvalidBatchCountError('Batch count must be between 1 and 1000');
     }
 
     const promises: Promise<unknown>[] = [];

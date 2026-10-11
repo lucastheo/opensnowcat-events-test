@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
+import { handleRouteError } from '@/app/api/error-handler';
 
 export async function GET() {
-  return NextResponse.json({ status: 'ok', service: 'backend-producer' });
+  try {
+    return NextResponse.json({ status: 'ok', service: 'backend-producer' });
+  } catch (error: unknown) {
+    return handleRouteError(error);
+  }
 }

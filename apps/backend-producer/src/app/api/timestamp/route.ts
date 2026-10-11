@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TimestampRequestSchema, type TimestampResponseBody } from './schema';
+import { handleRouteError } from '@/app/api/error-handler';
 import { timestampService } from '@/business/services/timestamp.service';
 
 export async function POST(req: NextRequest) {
@@ -32,13 +33,6 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(responsePayload, { status: 200 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    if (message.startsWith('Invalid timezone')) {
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-    return NextResponse.json(
-      { error: 'Internal Server Error', message },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }

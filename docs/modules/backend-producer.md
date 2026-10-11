@@ -102,6 +102,7 @@ apps/backend-producer/
 ├── src/
 │   ├── app/
 │   │   └── api/                            # 1. CONTROLLER LAYER (Next.js Route Handlers + Zod DTOs)
+│   │       ├── error-handler.ts            # Route error mapper (BusinessError -> HTTP response)
 │   │       ├── calc/
 │   │       │   ├── schema.ts               # Zod Request & Response Schemas
 │   │       │   ├── route.ts                # POST /api/calc handler
@@ -129,6 +130,9 @@ apps/backend-producer/
 │   ├── business/                           # 2. BUSINESS LAYER (Domain & Services)
 │   │   ├── tracking.dispatcher.ts          # Unified dual emission dispatcher
 │   │   ├── tracking.dispatcher.test.ts     # Dispatcher unit tests
+│   │   ├── errors/                         # Strongly-Typed Business Errors
+│   │   │   ├── business.error.ts           # Domain BusinessError hierarchy
+│   │   │   └── business.error.test.ts      # Error class unit tests
 │   │   ├── domain/                         # Domain Entities, Value Objects & Models
 │   │   │   ├── calculation.ts              # Calculation entity & operator rules
 │   │   │   ├── calculation.test.ts         # Domain unit tests
@@ -176,11 +180,13 @@ The API boundary strictly distinguishes between **Schema Objects** and **Domain 
 - **Schema Objects (`schema.ts`):** Represent the public HTTP contract. Every endpoint defines both a **`RequestSchema`** (validating input via Zod) and a **`ResponseSchema`** (defining the public output shape). The endpoint **always returns a Schema Object** in the HTTP body.
 - **Domain Objects (`src/business/domain/`):** Represent internal business entities, rules, and calculations. Domain objects are internal to the Business layer and are **never exposed directly over the network**.
 - **Mapping:** The Controller invokes the Business service, receives a Domain Object, and maps it into the public `ResponseSchema` object.
+- **Centralized Route Error Handling (`src/app/api/error-handler.ts`):** All controllers catch errors and delegate to `handleRouteError(error)`. Domain errors extending `BusinessError` automatically map to their respective HTTP status code (defaulting to 400 Bad Request) with `{ error: error.message }`. Unexpected system errors or unhandled exceptions fallback cleanly to HTTP 500 (`{ error: 'Internal Server Error', message }`). Controllers never perform string matching on error messages.
 
 ```
 Request JSON ──> [RequestSchema.safeParse] ──> Controller ──> Business (operates on Domain Object)
-                                                                 │
-Response JSON <── [ResponseSchema] <── Controller <── Domain Object returned
+                                                 │
+                                                 ├── Success ──> [ResponseSchema] ──> Response JSON
+                                                 └── Catch   ──> [handleRouteError] ──> Error JSON
 ```
 
 #### Colocated Schemas and Route Handlers:
@@ -198,6 +204,14 @@ Each API route collocates its Zod schema definition directly with its Next.js ro
 ### 5.2 Business Layer (`src/business/`)
 
 The Business Layer encapsulates all business rules, domain entities, tracking metadata generation, and orchestration of external tracking emissions:
+
+- **Domain Business Errors ([`src/business/errors/`](../../apps/backend-producer/src/business/errors/)):**
+  - [`business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts): Strongly-typed domain error hierarchy rooted at `BusinessError` (with `statusCode = 400` default).
+    - `DivisionByZeroError`: Thrown on arithmetic division by zero.
+    - `UnsupportedOperatorError`: Thrown when an invalid or unpermitted mathematical operator is provided.
+    - `InvalidTimezoneError`: Thrown when an invalid IANA timezone identifier is provided.
+    - `InvalidDiceError`: Thrown when dice roll count or sides violate game rules.
+    - `InvalidBatchCountError`: Thrown when batch simulator iteration count violates bounds (1–1000).
 
 - **Domain Entities ([`src/business/domain/`](../../apps/backend-producer/src/business/domain/)):**
   - [`calculation.ts`](../../apps/backend-producer/src/business/domain/calculation.ts): `Calculation` entity holding inputs, operator, result, and division validation rules.
@@ -439,12 +453,14 @@ Every source file in the repository has a companion `*.test.ts` file colocated i
 
 | Source File | Companion Unit Test File | What It Tests |
 |---|---|---|
+| [`src/app/api/error-handler.ts`](../../apps/backend-producer/src/app/api/error-handler.ts) | [`src/app/api/error-handler.test.ts`](../../apps/backend-producer/src/app/api/error-handler.test.ts) | Route error mapping helper (BusinessError vs. 500 fallback). |
 | [`src/app/api/calc/route.ts`](../../apps/backend-producer/src/app/api/calc/route.ts) | [`src/app/api/calc/route.test.ts`](../../apps/backend-producer/src/app/api/calc/route.test.ts) | Request parsing, Zod 400 errors, Business delegation, Response mapping. |
 | [`src/app/api/timestamp/route.ts`](../../apps/backend-producer/src/app/api/timestamp/route.ts) | [`src/app/api/timestamp/route.test.ts`](../../apps/backend-producer/src/app/api/timestamp/route.test.ts) | Timezone input validation, 200 responses, error handling. |
 | [`src/app/api/daily-excuse/route.ts`](../../apps/backend-producer/src/app/api/daily-excuse/route.ts) | [`src/app/api/daily-excuse/route.test.ts`](../../apps/backend-producer/src/app/api/daily-excuse/route.test.ts) | GET request handling, excuse response format. |
 | [`src/app/api/dice/route.ts`](../../apps/backend-producer/src/app/api/dice/route.ts) | [`src/app/api/dice/route.test.ts`](../../apps/backend-producer/src/app/api/dice/route.test.ts) | Dice count (1–10) bounds, sides enum validation, 400 errors. |
 | [`src/app/api/batch/route.ts`](../../apps/backend-producer/src/app/api/batch/route.ts) | [`src/app/api/batch/route.test.ts`](../../apps/backend-producer/src/app/api/batch/route.test.ts) | Count parameter validation, batch execution delegation. |
 | [`src/app/api/health/route.ts`](../../apps/backend-producer/src/app/api/health/route.ts) | [`src/app/api/health/route.test.ts`](../../apps/backend-producer/src/app/api/health/route.test.ts) | Health check endpoint response and status. |
+| [`src/business/errors/business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts) | [`src/business/errors/business.error.test.ts`](../../apps/backend-producer/src/business/errors/business.error.test.ts) | BusinessError base class and domain error subclasses. |
 | [`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts) | [`src/business/tracking.dispatcher.test.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.test.ts) | Dual emission dispatch, UUID/timestamp generation and parity across clients. |
 | [`src/business/services/calc.service.ts`](../../apps/backend-producer/src/business/services/calc.service.ts) | [`src/business/services/calc.service.test.ts`](../../apps/backend-producer/src/business/services/calc.service.test.ts) | Math operations (`+`, `-`, `*`, `/`), division by zero error, event metadata. |
 | [`src/business/services/timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts) | [`src/business/services/timestamp.service.test.ts`](../../apps/backend-producer/src/business/services/timestamp.service.test.ts) | Timezone calculations, formatted string output. |
