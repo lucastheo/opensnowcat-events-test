@@ -180,7 +180,7 @@ The API boundary strictly distinguishes between **Schema Objects** and **Domain 
 - **Schema Objects (`schema.ts`):** Represent the public HTTP contract. Every endpoint defines both a **`RequestSchema`** (validating input via Zod) and a **`ResponseSchema`** (defining the public output shape). The endpoint **always returns a Schema Object** in the HTTP body.
 - **Domain Objects (`src/business/domain/`):** Represent internal business entities, rules, and calculations. Domain objects are internal to the Business layer and are **never exposed directly over the network**.
 - **Mapping:** The Controller invokes the Business service, receives a Domain Object, and maps it into the public `ResponseSchema` object.
-- **Centralized Route Error Handling (`src/app/api/error-handler.ts`):** All controllers catch errors and delegate to `handleRouteError(error)`. Domain errors extending `BusinessError` automatically map to their respective HTTP status code (defaulting to 400 Bad Request) with `{ error: error.message }`. Unexpected system errors or unhandled exceptions fallback cleanly to HTTP 500 (`{ error: 'Internal Server Error', message }`). Controllers never perform string matching on error messages.
+- **Centralized Route Error Handling (`src/app/api/error-handler.ts`):** All controllers catch errors and delegate to `handleRouteError(error)`. Domain errors extending `BusinessError` map to HTTP 400 Bad Request with `{ error: error.message }`. Unexpected system errors or unhandled exceptions fallback cleanly to HTTP 500 (`{ error: 'Internal Server Error', message }`). Controllers never perform string matching on error messages.
 
 ```
 Request JSON ──> [RequestSchema.safeParse] ──> Controller ──> Business (operates on Domain Object)
@@ -206,7 +206,7 @@ Each API route collocates its Zod schema definition directly with its Next.js ro
 The Business Layer encapsulates all business rules, domain entities, tracking metadata generation, and orchestration of external tracking emissions:
 
 - **Domain Business Errors ([`src/business/errors/`](../../apps/backend-producer/src/business/errors/)):**
-  - [`business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts): Strongly-typed domain error hierarchy rooted at `BusinessError` (with `statusCode = 400` default).
+  - [`business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts): Strongly-typed domain error hierarchy rooted at `BusinessError` (pure domain errors decoupled from HTTP concerns).
     - `DivisionByZeroError`: Thrown on arithmetic division by zero.
     - `UnsupportedOperatorError`: Thrown when an invalid or unpermitted mathematical operator is provided.
     - `InvalidTimezoneError`: Thrown when an invalid IANA timezone identifier is provided.
