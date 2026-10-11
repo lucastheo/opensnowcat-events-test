@@ -195,7 +195,32 @@ docker compose down
 
 ---
 
-## 5. Technical Specifications & Choices
+## 5. Code Quality, Linting & Static Analysis
+
+Each application in `apps/` uses TypeScript with strict mode enabled and provides a standardized `type-check` script for static analysis and type linting (`tsc --noEmit`). This validates strict typing, syntax correctness, module import integrity, and unused symbols without emitting build artifacts.
+
+### Running Linting & Type-Checking
+
+Run static analysis in any application directory:
+
+```bash
+# Simple Collector (Fastify Audit Service)
+cd apps/simple-collector
+npm run type-check
+
+# Backend Producer (Next.js API Service)
+cd apps/backend-producer
+npm run type-check
+```
+
+Before committing code or submitting pull requests, ensure that:
+1. All static analysis passes without errors (`npm run type-check`).
+2. All unit and integration test suites pass (`npm test`).
+3. See [CONTRIBUTING.md](../CONTRIBUTING.md) for pull request requirements and code quality guidelines.
+
+---
+
+## 6. Technical Specifications & Choices
 
 1. **Test Bot Engine:** **Playwright** on **Node.js 26** (using native ESM and native `fetch`).
 2. **Frontend Producer:** **React 19** + **Vite** on **Node.js 26** (5 pages with backend delegation).
@@ -203,3 +228,4 @@ docker compose down
 4. **Simple Collector Stack:** **Fastify** on **Node.js 26** (sequential append-only CSV persistence).
 5. **OpenSnowcat Collector Endpoint:** Configurable target OpenSnowcat collector URL (default: `http://localhost:8080`).
 6. **Project Scope & Roadmap:** For the development roadmap and testing objectives, see [**Project Specification (`project.md`)**](project.md).
+

@@ -496,10 +496,10 @@ Integration tests live in [`tests/integration/`](../../apps/backend-producer/tes
 
 ---
 
-### 8.3 Test Execution Commands
+### 8.3 Development, Linting & Test Execution Commands
 
 ```bash
-# 1. Run type check across TypeScript source files
+# 1. Run type check & static analysis (tsc --noEmit)
 npm run type-check
 
 # 2. Run all unit tests across all files
