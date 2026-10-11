@@ -9,13 +9,16 @@ import { simpleCollectorClient } from '@/external/simple-collector.client';
 // Controller, Business services, and Domain entities are 100% real.
 vi.mock('@/external/opensnowcat.client', () => ({
   openSnowcatClient: {
-    emitStructuredEvent: vi.fn().mockResolvedValue(true)
+    emitStructuredEvent: vi.fn().mockImplementation(async (params) => ({
+      eventId: params?.eventId ?? crypto.randomUUID(),
+      timestamp: params?.timestamp ?? new Date().toISOString()
+    }))
   }
 }));
 
 vi.mock('@/external/simple-collector.client', () => ({
   simpleCollectorClient: {
-    record: vi.fn().mockResolvedValue(true)
+    record: vi.fn().mockResolvedValue({ status: 'ok', event_id: 'test' })
   }
 }));
 
@@ -82,18 +85,26 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
       expect(matchingScCall![0].source).toBe('backend');
       expect(matchingScCall![0].event_type).toBe('backend_batch');
     }
+
+    // 8. Verify sequential flow per emission: OpenSnowcat is invoked before Simple Collector
+    const oscOrder = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.invocationCallOrder[0];
+    const scOrder = vi.mocked(simpleCollectorClient.record).mock.invocationCallOrder[0];
+    expect(oscOrder).toBeLessThan(scOrder);
   });
 
   it('processes multi-chunk batches across controller and business layers with chunked external emission', async () => {
     let activeOscConcurrent = 0;
     let peakOscConcurrent = 0;
 
-    vi.mocked(openSnowcatClient.emitStructuredEvent).mockImplementation(async () => {
+    vi.mocked(openSnowcatClient.emitStructuredEvent).mockImplementation(async (params) => {
       activeOscConcurrent++;
       peakOscConcurrent = Math.max(peakOscConcurrent, activeOscConcurrent);
       await new Promise(resolve => setTimeout(resolve, 5));
       activeOscConcurrent--;
-      return true;
+      return {
+        eventId: (params as any)?.eventId ?? crypto.randomUUID(),
+        timestamp: (params as any)?.timestamp ?? new Date().toISOString()
+      };
     });
 
     const req = new NextRequest('http://localhost:4000/api/batch', {
@@ -117,4 +128,3 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
     expect(simpleCollectorClient.record).toHaveBeenCalledTimes(12);
   });
 });
-

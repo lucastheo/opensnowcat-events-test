@@ -1,4 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const { mockTrack, mockFlush, mockNewTracker, mockBuildStructEvent } = vi.hoisted(() => {
+  const mockTrack = vi.fn();
+  const mockFlush = vi.fn();
+  const mockNewTracker = vi.fn((..._args: any[]) => ({
+    track: mockTrack,
+    flush: mockFlush
+  }));
+  const mockBuildStructEvent = vi.fn((params: any) => ({
+    category: params.category,
+    action: params.action,
+    label: params.label,
+    property: params.property,
+    value: params.value
+  }));
+  return { mockTrack, mockFlush, mockNewTracker, mockBuildStructEvent };
+});
+
+vi.mock('@snowplow/node-tracker', () => ({
+  buildStructEvent: (args: any) => mockBuildStructEvent(args),
+  newTracker: (...args: any[]) => (mockNewTracker as any)(...args)
+}));
+
 import {
   OpenSnowcatClient,
   openSnowcatClient,
@@ -10,8 +33,13 @@ describe('OpenSnowcatClient', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockFlush.mockResolvedValue(undefined);
+    mockTrack.mockReturnValue({
+      eid: 'default-mock-uuid',
+      dtm: '1728648000000'
+    });
   });
 
   afterEach(() => {
@@ -44,6 +72,21 @@ describe('OpenSnowcatClient', () => {
 
     it('provides a default singleton export', () => {
       expect(openSnowcatClient).toBeInstanceOf(OpenSnowcatClient);
+    });
+
+    it('initializes newTracker with parsed host, port, protocol and timeout', () => {
+      mockNewTracker.mockClear();
+      new OpenSnowcatClient('https://custom-collector.example.com:9000', 3000);
+      expect(mockNewTracker).toHaveBeenCalledWith(
+        { namespace: 'backend', appId: 'backend-producer' },
+        {
+          endpoint: 'custom-collector.example.com',
+          port: 9000,
+          protocol: 'https',
+          bufferSize: 1,
+          connectionTimeout: 3000
+        }
+      );
     });
   });
 
@@ -132,83 +175,119 @@ describe('OpenSnowcatClient', () => {
       timestamp: '2026-10-11T12:00:00.000Z'
     };
 
-    it('sends correct HTTP POST request and returns true on HTTP 200', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK'
+    it('calls tracker.track(buildStructEvent(...)) and tracker.flush()', async () => {
+      mockTrack.mockReturnValueOnce({
+        eid: 'test-event-uuid-1',
+        dtm: '1728648000000'
       });
-      vi.stubGlobal('fetch', mockFetch);
 
       const result = await client.emitStructuredEvent(mockParams);
 
-      expect(result).toBe(true);
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-
-      const [url, options] = mockFetch.mock.calls[0];
-      expect(url).toBe('http://collector.local:8080/com.snowplowanalytics.snowplow/tp2');
-      expect(options.method).toBe('POST');
-      expect(options.headers).toEqual({
-        'Content-Type': 'application/json'
+      expect(mockBuildStructEvent).toHaveBeenCalledWith({
+        category: mockParams.category,
+        action: mockParams.action,
+        label: mockParams.label,
+        property: mockParams.property,
+        value: mockParams.value
       });
-      expect(options.signal).toBeInstanceOf(AbortSignal);
-
-      const body = JSON.parse(options.body);
-      expect(body.schema).toBe('iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4');
-      expect(body.data[0].se_ca).toBe('test_category');
-      expect(body.data[0].eid).toBe('evt-100');
+      expect(mockTrack).toHaveBeenCalledTimes(1);
+      expect(mockFlush).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        eventId: 'test-event-uuid-1',
+        timestamp: new Date(1728648000000).toISOString()
+      });
     });
 
-    it('handles HTTP non-200 responses gracefully, logs error, and returns false', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error'
+    it('returns eventId and ISO timestamp from tracked payload', async () => {
+      const dtmTimestamp = 1609459200000; // 2021-01-01T00:00:00.000Z
+      mockTrack.mockReturnValueOnce({
+        eid: 'specific-uuid-999',
+        dtm: String(dtmTimestamp)
       });
-      vi.stubGlobal('fetch', mockFetch);
 
       const result = await client.emitStructuredEvent(mockParams);
 
-      expect(result).toBe(false);
+      expect(result).toEqual({
+        eventId: 'specific-uuid-999',
+        timestamp: new Date(dtmTimestamp).toISOString()
+      });
+    });
+
+    it('falls back to current time when payload dtm is missing or not a number', async () => {
+      mockTrack.mockReturnValueOnce({
+        eid: 'fallback-time-uuid'
+      });
+
+      const before = Date.now();
+      const result = await client.emitStructuredEvent(mockParams);
+      const after = Date.now();
+
+      expect(result?.eventId).toBe('fallback-time-uuid');
+      expect(result?.timestamp).toBeDefined();
+      const parsedTime = Date.parse(result!.timestamp);
+      expect(parsedTime).toBeGreaterThanOrEqual(before);
+      expect(parsedTime).toBeLessThanOrEqual(after);
+    });
+
+    it('handles tracker.track errors gracefully, logs error, and returns null without throwing', async () => {
+      const trackerError = new Error('Tracker serialization error');
+      mockTrack.mockImplementationOnce(() => {
+        throw trackerError;
+      });
+
+      const result = await client.emitStructuredEvent(mockParams);
+
+      expect(result).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[OpenSnowcatClient] Failed to emit event. Status: 500 Internal Server Error')
+        '[OpenSnowcatClient] Error emitting structured event to OpenSnowcat:',
+        trackerError
       );
     });
 
-    it('handles network errors / rejected fetch gracefully and returns false without throwing', async () => {
-      const networkError = new Error('ECONNREFUSED: Connection refused');
-      const mockFetch = vi.fn().mockRejectedValue(networkError);
-      vi.stubGlobal('fetch', mockFetch);
+    it('handles missing payload or missing eid gracefully and returns null', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockTrack.mockReturnValueOnce({});
 
       const result = await client.emitStructuredEvent(mockParams);
 
-      expect(result).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[OpenSnowcatClient] Error emitting structured event to OpenSnowcat:',
-        networkError
+      expect(result).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[OpenSnowcatClient] Tracker did not return payload with eid'
       );
     });
 
-    it('handles timeout abort gracefully and returns false', async () => {
-      const abortError = new DOMException('The operation was aborted.', 'AbortError');
-      const mockFetch = vi.fn().mockRejectedValue(abortError);
-      vi.stubGlobal('fetch', mockFetch);
+    it('handles tracker.flush rejection gracefully, logs error, and still returns tracked eventId and timestamp', async () => {
+      const flushError = new Error('Network timeout during flush');
+      mockFlush.mockRejectedValueOnce(flushError);
+      mockTrack.mockReturnValueOnce({
+        eid: 'flush-failed-uuid',
+        dtm: '1728648000000'
+      });
 
       const result = await client.emitStructuredEvent(mockParams);
 
-      expect(result).toBe(false);
+      expect(result).toEqual({
+        eventId: 'flush-failed-uuid',
+        timestamp: new Date(1728648000000).toISOString()
+      });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[OpenSnowcatClient] Error emitting structured event to OpenSnowcat:',
-        abortError
+        '[OpenSnowcatClient] Failed to flush tracker emitter:',
+        flushError
       );
     });
 
     it('trackEvent alias delegates to emitStructuredEvent', async () => {
-      const emitSpy = vi.spyOn(client, 'emitStructuredEvent').mockResolvedValue(true);
+      const emitSpy = vi.spyOn(client, 'emitStructuredEvent').mockResolvedValueOnce({
+        eventId: 'evt-alias-123',
+        timestamp: '2026-10-11T12:00:00.000Z'
+      });
 
       const result = await client.trackEvent(mockParams);
 
-      expect(result).toBe(true);
+      expect(result).toEqual({
+        eventId: 'evt-alias-123',
+        timestamp: '2026-10-11T12:00:00.000Z'
+      });
       expect(emitSpy).toHaveBeenCalledWith(mockParams);
     });
   });

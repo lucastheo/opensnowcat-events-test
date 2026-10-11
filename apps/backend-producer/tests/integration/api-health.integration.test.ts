@@ -6,13 +6,16 @@ import { simpleCollectorClient } from '@/external/simple-collector.client';
 // STRICT RULE: ONLY External services are mocked in integration tests!
 vi.mock('@/external/opensnowcat.client', () => ({
   openSnowcatClient: {
-    emitStructuredEvent: vi.fn().mockResolvedValue(true)
+    emitStructuredEvent: vi.fn().mockImplementation(async (params) => ({
+      eventId: params?.eventId ?? crypto.randomUUID(),
+      timestamp: params?.timestamp ?? new Date().toISOString()
+    }))
   }
 }));
 
 vi.mock('@/external/simple-collector.client', () => ({
   simpleCollectorClient: {
-    record: vi.fn().mockResolvedValue(true)
+    record: vi.fn().mockResolvedValue({ status: 'ok', event_id: 'test' })
   }
 }));
 
@@ -36,4 +39,3 @@ describe('Integration Test: GET /api/health Full Flow', () => {
     expect(simpleCollectorClient.record).not.toHaveBeenCalled();
   });
 });
-

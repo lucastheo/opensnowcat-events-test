@@ -71,15 +71,13 @@ sequenceDiagram
     Note over Controller: Parse & validate body
     Controller->>Business: calcService.calculate({ a: 12, b: 4, operator: "+" })
     
-    Note over Business: Execute domain logic (12 + 4 = 16)<br/>Generate event_id (UUID) & timestamp (ISO)
+    Note over Business: Execute domain logic (12 + 4 = 16)
 
-    par Parallel External Dispatch
-        Business->>External: openSnowcatClient.trackEvent(payload)
-        External->>OSC: POST /com.snowplowanalytics.snowplow/tp2
-    and
-        Business->>External: simpleCollectorClient.record(auditData)
-        External->>SC: POST /collect { event_id, timestamp, source: "backend" }
-    end
+    Business->>External: openSnowcatClient.emitStructuredEvent(params)
+    External->>OSC: Track & flush via @snowplow/node-tracker
+    External-->>Business: Returns { eventId, timestamp }
+    Business->>External: simpleCollectorClient.record({ event_id, timestamp, source: "backend" })
+    External->>SC: POST /collect { event_id, timestamp, source: "backend" }
 
     Business-->>Controller: Return CalculationResult { result: 16 }
     Controller-->>Client: HTTP 200 OK { result: 16 }
@@ -238,9 +236,10 @@ The Business Layer encapsulates all business rules, domain entities, tracking me
 The External Layer manages outbound HTTP communication with external services, isolating third-party network APIs from the domain layer:
 
 - **OpenSnowcat Client ([`src/external/opensnowcat.client.ts`](../../apps/backend-producer/src/external/opensnowcat.client.ts)):**
-  - Targets `POST ${OPENSNOWCAT_COLLECTOR_URL}/com.snowplowanalytics.snowplow/tp2`.
-  - Formats standard Snowplow tracker payload envelope (`iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4`).
-  - Features configurable request timeouts and resilient error logging.
+  - Powered by official `@snowplow/node-tracker` (`newTracker`, `buildStructEvent`).
+  - Automatically parses collector URL host, port, and protocol.
+  - Emits structured events with single-buffered emitter and flushes to OpenSnowcat Collector.
+  - Returns generated `eventId` and `timestamp` from the tracker payload for audit parity.
 - **Simple Collector Client ([`src/external/simple-collector.client.ts`](../../apps/backend-producer/src/external/simple-collector.client.ts)):**
   - Targets `POST ${SIMPLE_COLLECTOR_URL}/collect`.
   - Dispatches audit record `{ event_id, timestamp, source: "backend", event_type: "backend_api" }`.
@@ -476,7 +475,7 @@ Every source file in the repository has a companion `*.test.ts` file colocated i
 | [`src/business/domain/timestamp-info.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.ts) | [`src/business/domain/timestamp-info.test.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.test.ts) | TimeLocation creation, properties, timezone validation helper. |
 | [`src/business/domain/excuse.ts`](../../apps/backend-producer/src/business/domain/excuse.ts) | [`src/business/domain/excuse.test.ts`](../../apps/backend-producer/src/business/domain/excuse.test.ts) | Excuse entity creation, text getter, developer excuse quote pool invariants. |
 | [`src/business/domain/dice-roll.ts`](../../apps/backend-producer/src/business/domain/dice-roll.ts) | [`src/business/domain/dice-roll.test.ts`](../../apps/backend-producer/src/business/domain/dice-roll.test.ts) | Dice sides mapping helper, DiceRoll entity creation and roll calculations. |
-| [`src/external/opensnowcat.client.ts`](../../apps/backend-producer/src/external/opensnowcat.client.ts) | [`src/external/opensnowcat.client.test.ts`](../../apps/backend-producer/src/external/opensnowcat.client.test.ts) | Snowplow `/tp2` envelope formatting, timeout handling. |
+| [`src/external/opensnowcat.client.ts`](../../apps/backend-producer/src/external/opensnowcat.client.ts) | [`src/external/opensnowcat.client.test.ts`](../../apps/backend-producer/src/external/opensnowcat.client.test.ts) | `@snowplow/node-tracker` client initialization, event tracking, emitter flush, and error recovery. |
 | [`src/external/simple-collector.client.ts`](../../apps/backend-producer/src/external/simple-collector.client.ts) | [`src/external/simple-collector.client.test.ts`](../../apps/backend-producer/src/external/simple-collector.client.test.ts) | Audit payload structure, error recovery if collector is offline. |
 
 ---

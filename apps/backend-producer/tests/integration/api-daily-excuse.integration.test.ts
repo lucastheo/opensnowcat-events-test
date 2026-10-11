@@ -8,13 +8,16 @@ import { simpleCollectorClient } from '@/external/simple-collector.client';
 // Controller, Business services, and Domain entities are 100% real.
 vi.mock('@/external/opensnowcat.client', () => ({
   openSnowcatClient: {
-    emitStructuredEvent: vi.fn().mockResolvedValue(true)
+    emitStructuredEvent: vi.fn().mockImplementation(async (params) => ({
+      eventId: params?.eventId ?? crypto.randomUUID(),
+      timestamp: params?.timestamp ?? new Date().toISOString()
+    }))
   }
 }));
 
 vi.mock('@/external/simple-collector.client', () => ({
   simpleCollectorClient: {
-    record: vi.fn().mockResolvedValue(true)
+    record: vi.fn().mockResolvedValue({ status: 'ok', event_id: 'test' })
   }
 }));
 
@@ -67,5 +70,10 @@ describe('Integration Test: GET /api/daily-excuse Full Flow', () => {
     const simpleCollectorCall = vi.mocked(simpleCollectorClient.record).mock.calls[0][0];
     expect(openSnowcatCall.eventId).toBe(simpleCollectorCall.event_id);
     expect(openSnowcatCall.timestamp).toBe(simpleCollectorCall.timestamp);
+
+    // 7. Verify sequential flow: OpenSnowcat is invoked before Simple Collector
+    const oscOrder = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.invocationCallOrder[0];
+    const scOrder = vi.mocked(simpleCollectorClient.record).mock.invocationCallOrder[0];
+    expect(oscOrder).toBeLessThan(scOrder);
   });
 });

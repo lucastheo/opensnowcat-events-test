@@ -1,11 +1,17 @@
+import {
+  newTracker,
+  buildStructEvent,
+  type Tracker
+} from '@snowplow/node-tracker';
+
 export interface StructuredEventParams {
   category: string;
   action: string;
   label?: string;
   property?: string;
   value?: number;
-  eventId: string;
-  timestamp: string;
+  eventId?: string;
+  timestamp?: string;
 }
 
 export interface SnowplowPayloadEnvelope {
@@ -25,6 +31,7 @@ export interface SnowplowPayloadEnvelope {
 }
 
 export class OpenSnowcatClient {
+  public tracker: Tracker;
   private collectorUrl: string;
   private timeoutMs: number;
 
@@ -35,6 +42,38 @@ export class OpenSnowcatClient {
       'http://localhost:8080'
     ).replace(/\/+$/, '');
     this.timeoutMs = timeoutMs;
+
+    let endpoint = 'localhost';
+    let port: number | undefined = 8080;
+    let protocol: 'http' | 'https' = 'http';
+
+    try {
+      const normalizedUrl =
+        this.collectorUrl.startsWith('http://') || this.collectorUrl.startsWith('https://')
+          ? this.collectorUrl
+          : `http://${this.collectorUrl}`;
+      const parsed = new URL(normalizedUrl);
+      endpoint = parsed.hostname;
+      port = parsed.port ? Number(parsed.port) : undefined;
+      protocol = parsed.protocol
+        ? (parsed.protocol.replace(':', '') as 'http' | 'https')
+        : 'http';
+    } catch {
+      endpoint = 'localhost';
+      port = 8080;
+      protocol = 'http';
+    }
+
+    this.tracker = newTracker(
+      { namespace: 'backend', appId: 'backend-producer' },
+      {
+        endpoint,
+        port,
+        protocol,
+        bufferSize: 1,
+        connectionTimeout: this.timeoutMs
+      }
+    );
   }
 
   get endpoint(): string {
@@ -42,7 +81,7 @@ export class OpenSnowcatClient {
   }
 
   buildPayload(params: StructuredEventParams): SnowplowPayloadEnvelope {
-    const parsedDtm = Date.parse(params.timestamp);
+    const parsedDtm = params.timestamp ? Date.parse(params.timestamp) : NaN;
     const dtm = String(!isNaN(parsedDtm) ? parsedDtm : Date.now());
 
     return {
@@ -55,7 +94,7 @@ export class OpenSnowcatClient {
           se_la: params.label,
           se_pr: params.property,
           se_va: params.value !== undefined ? String(params.value) : undefined,
-          eid: params.eventId,
+          eid: params.eventId ?? crypto.randomUUID(),
           dtm,
           tv: 'backend-producer-1.0.0',
           p: 'srv'
@@ -64,42 +103,57 @@ export class OpenSnowcatClient {
     };
   }
 
-  async emitStructuredEvent(params: StructuredEventParams): Promise<boolean> {
-    const payload = this.buildPayload(params);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
+  emitStructuredEvent(
+    params: StructuredEventParams
+  ): Promise<{ eventId: string; timestamp: string } | null>;
+  emitStructuredEvent(
+    params: any
+  ): Promise<any>;
+  async emitStructuredEvent(
+    params: StructuredEventParams
+  ): Promise<{ eventId: string; timestamp: string } | null | any> {
     try {
-      const response = await fetch(this.endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
+      const pb = buildStructEvent({
+        category: params.category,
+        action: params.action,
+        label: params.label,
+        property: params.property,
+        value: params.value
       });
 
-      if (!response.ok) {
+      const payload = this.tracker.track(pb);
+
+      try {
+        await this.tracker.flush();
+      } catch (flushError) {
         console.error(
-          `[OpenSnowcatClient] Failed to emit event. Status: ${response.status} ${response.statusText}`
+          '[OpenSnowcatClient] Failed to flush tracker emitter:',
+          flushError
         );
-        return false;
       }
 
-      return true;
+      if (!payload || !payload.eid) {
+        console.warn('[OpenSnowcatClient] Tracker did not return payload with eid');
+        return null;
+      }
+
+      const eventId = String(payload.eid);
+      const timestamp = new Date(Number(payload.dtm) || Date.now()).toISOString();
+
+      return { eventId, timestamp };
     } catch (error) {
       console.error(
         '[OpenSnowcatClient] Error emitting structured event to OpenSnowcat:',
         error
       );
-      return false;
-    } finally {
-      clearTimeout(timer);
+      return null;
     }
   }
 
   // Alias for emitStructuredEvent to support trackEvent references if used
-  async trackEvent(params: StructuredEventParams): Promise<boolean> {
+  async trackEvent(
+    params: StructuredEventParams
+  ): Promise<{ eventId: string; timestamp: string } | null> {
     return this.emitStructuredEvent(params);
   }
 }

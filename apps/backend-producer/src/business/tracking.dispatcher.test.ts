@@ -5,22 +5,41 @@ import { simpleCollectorClient } from '@/external/simple-collector.client';
 
 vi.mock('@/external/opensnowcat.client', () => ({
   openSnowcatClient: {
-    emitStructuredEvent: vi.fn().mockResolvedValue({ status: 200, statusText: 'OK' })
+    emitStructuredEvent: vi.fn()
   }
 }));
 
 vi.mock('@/external/simple-collector.client', () => ({
   simpleCollectorClient: {
-    record: vi.fn().mockResolvedValue({ status: 'ok', event_id: 'test' })
+    record: vi.fn().mockResolvedValue(true)
   }
 }));
 
 describe('Tracking Dispatcher (dispatchDualEmission)', () => {
+  const defaultSnowcatResult = {
+    eventId: 'snowcat-uuid-1111',
+    timestamp: '2026-10-11T12:34:56.789Z'
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValue(defaultSnowcatResult);
+    vi.mocked(simpleCollectorClient.record).mockResolvedValue(true);
   });
 
-  it('dispatches concurrent calls to openSnowcatClient and simpleCollectorClient', async () => {
+  it('executes sequentially: calls openSnowcatClient first, then simpleCollectorClient', async () => {
+    const executionOrder: string[] = [];
+
+    vi.mocked(openSnowcatClient.emitStructuredEvent).mockImplementationOnce(async () => {
+      executionOrder.push('openSnowcat');
+      return defaultSnowcatResult;
+    });
+
+    vi.mocked(simpleCollectorClient.record).mockImplementationOnce(async () => {
+      executionOrder.push('simpleCollector');
+      return true;
+    });
+
     const params: DualEmissionParams = {
       category: 'backend_service',
       action: 'calculate',
@@ -29,92 +48,142 @@ describe('Tracking Dispatcher (dispatchDualEmission)', () => {
       value: 3
     };
 
+    await dispatchDualEmission(params);
+
+    expect(executionOrder).toEqual(['openSnowcat', 'simpleCollector']);
+    const oscOrder = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.invocationCallOrder[0];
+    const scOrder = vi.mocked(simpleCollectorClient.record).mock.invocationCallOrder[0];
+    expect(oscOrder).toBeLessThan(scOrder);
+  });
+
+  it('forwards input params to openSnowcatClient and passes exact event_id and timestamp to simpleCollectorClient', async () => {
+    const customResult = {
+      eventId: 'tracked-uuid-9876',
+      timestamp: '2026-10-11T15:00:00.000Z'
+    };
+    vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce(customResult);
+
+    const params: DualEmissionParams = {
+      category: 'backend_service',
+      action: 'calculate',
+      label: '*',
+      property: '6*7',
+      value: 42
+    };
+
     const result = await dispatchDualEmission(params);
 
     expect(openSnowcatClient.emitStructuredEvent).toHaveBeenCalledTimes(1);
+    expect(openSnowcatClient.emitStructuredEvent).toHaveBeenCalledWith(params);
+
     expect(simpleCollectorClient.record).toHaveBeenCalledTimes(1);
-
-    expect(openSnowcatClient.emitStructuredEvent).toHaveBeenCalledWith({
-      category: 'backend_service',
-      action: 'calculate',
-      label: '+',
-      property: '1+2',
-      value: 3,
-      eventId: result.eventId,
-      timestamp: result.timestamp
-    });
-
     expect(simpleCollectorClient.record).toHaveBeenCalledWith({
-      event_id: result.eventId,
-      timestamp: result.timestamp,
+      event_id: customResult.eventId,
+      timestamp: customResult.timestamp,
       source: 'backend',
       event_type: 'backend_api'
     });
-  });
 
-  it('generates eventId (UUIDv4) and timestamp with exact parity between clients', async () => {
-    const params: DualEmissionParams = {
-      category: 'backend_service',
-      action: 'test_action'
-    };
-
-    const result = await dispatchDualEmission(params);
-
-    // Validate UUID format
-    expect(result.eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-    // Validate ISO timestamp
-    expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
-
-    const oscCall = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.calls[0][0];
-    const scCall = vi.mocked(simpleCollectorClient.record).mock.calls[0][0];
-
-    expect(oscCall.eventId).toBe(result.eventId);
-    expect(oscCall.timestamp).toBe(result.timestamp);
-    expect(scCall.event_id).toBe(result.eventId);
-    expect(scCall.timestamp).toBe(result.timestamp);
-  });
-
-  it('respects custom eventId, timestamp, and eventType overrides', async () => {
-    const customEventId = 'custom-event-uuid-1234';
-    const customTimestamp = '2026-10-11T12:34:56.789Z';
-    const customEventType = 'backend_batch';
-
-    const params: DualEmissionParams = {
-      category: 'backend_service',
-      action: 'batch_event',
-      eventId: customEventId,
-      timestamp: customTimestamp,
-      eventType: customEventType
-    };
-
-    const result = await dispatchDualEmission(params);
-
-    expect(result.eventId).toBe(customEventId);
-    expect(result.timestamp).toBe(customTimestamp);
-
-    expect(openSnowcatClient.emitStructuredEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: customEventId,
-        timestamp: customTimestamp
-      })
-    );
-
-    expect(simpleCollectorClient.record).toHaveBeenCalledWith({
-      event_id: customEventId,
-      timestamp: customTimestamp,
-      source: 'backend',
-      event_type: customEventType
+    expect(result).toEqual({
+      eventId: customResult.eventId,
+      timestamp: customResult.timestamp
     });
   });
 
-  it('propagates rejection if an external client fails', async () => {
-    vi.mocked(openSnowcatClient.emitStructuredEvent).mockRejectedValueOnce(new Error('OSC Collector down'));
+  it('respects custom eventType override on simpleCollectorClient', async () => {
+    const params: DualEmissionParams = {
+      category: 'backend_service',
+      action: 'batch_event',
+      eventType: 'backend_batch'
+    };
 
-    await expect(
-      dispatchDualEmission({
+    const result = await dispatchDualEmission(params);
+
+    expect(result.eventId).toBe(defaultSnowcatResult.eventId);
+    expect(result.timestamp).toBe(defaultSnowcatResult.timestamp);
+
+    expect(simpleCollectorClient.record).toHaveBeenCalledWith({
+      event_id: defaultSnowcatResult.eventId,
+      timestamp: defaultSnowcatResult.timestamp,
+      source: 'backend',
+      event_type: 'backend_batch'
+    });
+  });
+
+  describe('fallback handling when openSnowcatClient returns null or missing identifiers', () => {
+    it('falls back to params.eventId and params.timestamp when provided and openSnowcatClient returns null', async () => {
+      vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce(null);
+
+      const customEventId = 'preset-uuid-0001';
+      const customTimestamp = '2026-10-11T10:00:00.000Z';
+
+      const params: DualEmissionParams = {
         category: 'backend_service',
-        action: 'fail_test'
-      })
-    ).rejects.toThrow('OSC Collector down');
+        action: 'test_action',
+        eventId: customEventId,
+        timestamp: customTimestamp
+      };
+
+      const result = await dispatchDualEmission(params);
+
+      expect(result.eventId).toBe(customEventId);
+      expect(result.timestamp).toBe(customTimestamp);
+
+      expect(simpleCollectorClient.record).toHaveBeenCalledWith({
+        event_id: customEventId,
+        timestamp: customTimestamp,
+        source: 'backend',
+        event_type: 'backend_api'
+      });
+    });
+
+    it('generates random UUIDv4 and current timestamp with exact parity when openSnowcatClient returns null without params overrides', async () => {
+      vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce(null);
+
+      const params: DualEmissionParams = {
+        category: 'backend_service',
+        action: 'test_action'
+      };
+
+      const result = await dispatchDualEmission(params);
+
+      // Validate UUIDv4 format
+      expect(result.eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      // Validate ISO timestamp format
+      expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
+
+      expect(simpleCollectorClient.record).toHaveBeenCalledWith({
+        event_id: result.eventId,
+        timestamp: result.timestamp,
+        source: 'backend',
+        event_type: 'backend_api'
+      });
+    });
+  });
+
+  describe('error handling', () => {
+    it('propagates rejection if openSnowcatClient fails and does not invoke simpleCollectorClient', async () => {
+      vi.mocked(openSnowcatClient.emitStructuredEvent).mockRejectedValueOnce(new Error('OSC Collector down'));
+
+      await expect(
+        dispatchDualEmission({
+          category: 'backend_service',
+          action: 'fail_test'
+        })
+      ).rejects.toThrow('OSC Collector down');
+
+      expect(simpleCollectorClient.record).not.toHaveBeenCalled();
+    });
+
+    it('propagates rejection if simpleCollectorClient fails', async () => {
+      vi.mocked(simpleCollectorClient.record).mockRejectedValueOnce(new Error('Simple Collector disk full'));
+
+      await expect(
+        dispatchDualEmission({
+          category: 'backend_service',
+          action: 'fail_test'
+        })
+      ).rejects.toThrow('Simple Collector disk full');
+    });
   });
 });

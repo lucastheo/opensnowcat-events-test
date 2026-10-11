@@ -18,33 +18,25 @@ export interface DualEmissionResult {
 }
 
 /**
- * Dispatches tracking events to OpenSnowcat Stream Collector and Simple Collector concurrently.
- * Ensures consistent event_id and timestamp across both audit and analytics streams.
+ * Dispatches tracking events sequentially:
+ * 1. Produces the event to OpenSnowcat via official @snowplow/node-tracker.
+ * 2. Extracts the resulting event_id and timestamp (with fallbacks if needed).
+ * 3. Records the audit log entry to Simple Collector with identical event_id and timestamp.
  */
 export async function dispatchDualEmission(
   params: DualEmissionParams
 ): Promise<DualEmissionResult> {
-  const eventId = params.eventId ?? crypto.randomUUID();
-  const timestamp = params.timestamp ?? new Date().toISOString();
-  const eventType = params.eventType ?? 'backend_api';
+  const snowcatResult = await openSnowcatClient.emitStructuredEvent(params);
 
-  await Promise.all([
-    openSnowcatClient.emitStructuredEvent({
-      category: params.category,
-      action: params.action,
-      label: params.label,
-      property: params.property,
-      value: params.value,
-      eventId,
-      timestamp
-    }),
-    simpleCollectorClient.record({
-      event_id: eventId,
-      timestamp,
-      source: 'backend',
-      event_type: eventType
-    })
-  ]);
+  const eventId = snowcatResult?.eventId ?? params.eventId ?? crypto.randomUUID();
+  const timestamp = snowcatResult?.timestamp ?? params.timestamp ?? new Date().toISOString();
+
+  await simpleCollectorClient.record({
+    event_id: eventId,
+    timestamp,
+    source: 'backend',
+    event_type: params.eventType ?? 'backend_api'
+  });
 
   return { eventId, timestamp };
 }
