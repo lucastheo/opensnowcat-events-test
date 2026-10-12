@@ -454,30 +454,7 @@ The Backend Producer enforces two distinct testing tiers:
 
 ### 8.1 Unit Tests (1:1 File Mapping)
 
-Every source file in the repository has a companion `*.test.ts` file colocated in the same directory:
-
-| Source File | Companion Unit Test File | What It Tests |
-|---|---|---|
-| [`src/app/api/error-handler.ts`](../../apps/backend-producer/src/app/api/error-handler.ts) | [`src/app/api/error-handler.test.ts`](../../apps/backend-producer/src/app/api/error-handler.test.ts) | Route error mapping helper (BusinessError vs. 500 fallback). |
-| [`src/app/api/calc/route.ts`](../../apps/backend-producer/src/app/api/calc/route.ts) | [`src/app/api/calc/route.test.ts`](../../apps/backend-producer/src/app/api/calc/route.test.ts) | Request parsing, Zod 400 errors, Business delegation, Response mapping. |
-| [`src/app/api/timestamp/route.ts`](../../apps/backend-producer/src/app/api/timestamp/route.ts) | [`src/app/api/timestamp/route.test.ts`](../../apps/backend-producer/src/app/api/timestamp/route.test.ts) | Timezone input validation, 200 responses, error handling. |
-| [`src/app/api/daily-excuse/route.ts`](../../apps/backend-producer/src/app/api/daily-excuse/route.ts) | [`src/app/api/daily-excuse/route.test.ts`](../../apps/backend-producer/src/app/api/daily-excuse/route.test.ts) | GET request handling, excuse response format. |
-| [`src/app/api/dice/route.ts`](../../apps/backend-producer/src/app/api/dice/route.ts) | [`src/app/api/dice/route.test.ts`](../../apps/backend-producer/src/app/api/dice/route.test.ts) | Dice count (1–10) bounds, sides enum validation, 400 errors. |
-| [`src/app/api/batch/route.ts`](../../apps/backend-producer/src/app/api/batch/route.ts) | [`src/app/api/batch/route.test.ts`](../../apps/backend-producer/src/app/api/batch/route.test.ts) | Count parameter validation, batch execution delegation. |
-| [`src/app/api/health/route.ts`](../../apps/backend-producer/src/app/api/health/route.ts) | [`src/app/api/health/route.test.ts`](../../apps/backend-producer/src/app/api/health/route.test.ts) | Health check endpoint response and status. |
-| [`src/business/errors/business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts) | [`src/business/errors/business.error.test.ts`](../../apps/backend-producer/src/business/errors/business.error.test.ts) | BusinessError base class and domain error subclasses. |
-| [`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts) | [`src/business/tracking.dispatcher.test.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.test.ts) | Dual emission dispatch, zeros UUID fallback, timestamp generation, and parity across clients. |
-| [`src/business/services/calc.service.ts`](../../apps/backend-producer/src/business/services/calc.service.ts) | [`src/business/services/calc.service.test.ts`](../../apps/backend-producer/src/business/services/calc.service.test.ts) | Math operations (`+`, `-`, `*`, `/`), division by zero error, event metadata. |
-| [`src/business/services/timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts) | [`src/business/services/timestamp.service.test.ts`](../../apps/backend-producer/src/business/services/timestamp.service.test.ts) | Timezone calculations, formatted string output. |
-| [`src/business/services/excuse.service.ts`](../../apps/backend-producer/src/business/services/excuse.service.ts) | [`src/business/services/excuse.service.test.ts`](../../apps/backend-producer/src/business/services/excuse.service.test.ts) | Random selection, non-empty text, pool coverage. |
-| [`src/business/services/dice.service.ts`](../../apps/backend-producer/src/business/services/dice.service.ts) | [`src/business/services/dice.service.test.ts`](../../apps/backend-producer/src/business/services/dice.service.test.ts) | Random range bounds per die side, total sum math. |
-| [`src/business/services/batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts) | [`src/business/services/batch.service.test.ts`](../../apps/backend-producer/src/business/services/batch.service.test.ts) | Bulk event emissions with chunked execution (`CHUNK_SIZE = 5`), count bounds validation, batch tracking metadata. |
-| [`src/business/domain/calculation.ts`](../../apps/backend-producer/src/business/domain/calculation.ts) | [`src/business/domain/calculation.test.ts`](../../apps/backend-producer/src/business/domain/calculation.test.ts) | Entity creation, properties immutability, helper methods. |
-| [`src/business/domain/timestamp-info.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.ts) | [`src/business/domain/timestamp-info.test.ts`](../../apps/backend-producer/src/business/domain/timestamp-info.test.ts) | TimeLocation creation, properties, timezone validation helper. |
-| [`src/business/domain/excuse.ts`](../../apps/backend-producer/src/business/domain/excuse.ts) | [`src/business/domain/excuse.test.ts`](../../apps/backend-producer/src/business/domain/excuse.test.ts) | Excuse entity creation, text getter, developer excuse quote pool invariants. |
-| [`src/business/domain/dice-roll.ts`](../../apps/backend-producer/src/business/domain/dice-roll.ts) | [`src/business/domain/dice-roll.test.ts`](../../apps/backend-producer/src/business/domain/dice-roll.test.ts) | Dice sides mapping helper, DiceRoll entity creation and roll calculations. |
-| [`src/external/opensnowcat.client.ts`](../../apps/backend-producer/src/external/opensnowcat.client.ts) | [`src/external/opensnowcat.client.test.ts`](../../apps/backend-producer/src/external/opensnowcat.client.test.ts) | `@snowplow/node-tracker` client initialization, event tracking, emitter flush, and error recovery. |
-| [`src/external/simple-collector.client.ts`](../../apps/backend-producer/src/external/simple-collector.client.ts) | [`src/external/simple-collector.client.test.ts`](../../apps/backend-producer/src/external/simple-collector.client.test.ts) | Audit payload structure, error recovery if collector is offline. |
+Every source file in the repository has a companion `*.test.ts` file colocated in the same directory, following the strict 1:1 unit test requirement across Controller, Business (Domain, Errors, Services, Tracking Dispatcher), and External layers.
 
 ---
 
