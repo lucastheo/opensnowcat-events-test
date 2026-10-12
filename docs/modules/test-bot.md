@@ -77,7 +77,12 @@ apps/test-bot/
 │       └── metrics.ts               # Iteration latencies & success counters
 └── tests/
     ├── unit/
-    │   └── runner.test.ts           # 1:1 Unit tests for runner and parameter validation
+    │   ├── api.controller.test.ts   # 1:1 Unit tests for backend API requester
+    │   ├── browser.controller.test.ts # 1:1 Unit tests for Playwright browser driver
+    │   ├── index.test.ts            # 1:1 Unit tests for CLI entrypoint & argument parsing
+    │   ├── logger.test.ts           # 1:1 Unit tests for logger and progress reporting
+    │   ├── metrics.test.ts          # 1:1 Unit tests for metrics tracking and summarization
+    │   └── runner.test.ts           # 1:1 Unit tests for runner and worker pool orchestration
     └── integration/
         └── bot.integration.test.ts  # End-to-end bot test with mock servers
 ```
@@ -109,19 +114,7 @@ CMD ["npx", "tsx", "src/index.ts"]
 
 ## 4. CLI Interface & Parameters
 
-The Bot will be executed via a CLI with the following flags:
-
-```bash
-# Example command
-opensnowcat-bot \
-  --frontend-url http://localhost:3000 \
-  --backend-url http://localhost:4000 \
-  --iterations 500 \
-  --concurrency 5 \
-  --delay-ms 100 \
-  --mode both \
-  --headless true
-```
+The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). For execution examples across Docker Compose and CLI environments, see [Docker Compose Execution Profiles (`docker-compose.md#63-on-demand-bot-run-with-custom-parameters`)](docker-compose.md#63-on-demand-bot-run-with-custom-parameters) and [Master Overview (`../README.md#4-multi-service-orchestration-docker-compose`)](../README.md#4-multi-service-orchestration-docker-compose).
 
 ### Options:
 | Flag | Type | Default | Description |
@@ -186,6 +179,20 @@ opensnowcat-bot \
 
 ## 6. Verification & Test Plan
 
-1. **Standalone Test:** Run against a mock frontend and mock backend to verify correct click simulation and HTTP request dispatch.
+1. **Standalone Test:** Run against a mock frontend and mock backend to verify correct click simulation and HTTP request dispatch via `tests/integration/bot.integration.test.ts`.
 2. **Headful Visual Test:** Run with `--headless false` and watch the browser window interact with the frontend UI.
 3. **Pacing / Load Test:** Verify rate limiting (`--delay-ms`) and concurrency scaling (`--concurrency 10`).
+
+### Test Execution Commands:
+
+```bash
+# Run all unit and integration tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run end-to-end integration tests only
+npm run test:integration
+```
+
