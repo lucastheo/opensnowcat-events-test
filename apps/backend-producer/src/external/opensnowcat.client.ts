@@ -14,22 +14,6 @@ export interface StructuredEventParams {
   timestamp?: string;
 }
 
-export interface SnowplowPayloadEnvelope {
-  schema: string;
-  data: Array<{
-    e: string;
-    se_ca: string;
-    se_ac: string;
-    se_la?: string;
-    se_pr?: string;
-    se_va?: string;
-    eid: string;
-    dtm: string;
-    tv: string;
-    p: string;
-  }>;
-}
-
 export class OpenSnowcatClient {
   public tracker: Tracker;
   private collectorUrl: string;
@@ -78,29 +62,6 @@ export class OpenSnowcatClient {
 
   get endpoint(): string {
     return `${this.collectorUrl}/com.snowplowanalytics.snowplow/tp2`;
-  }
-
-  buildPayload(params: StructuredEventParams): SnowplowPayloadEnvelope {
-    const parsedDtm = params.timestamp ? Date.parse(params.timestamp) : NaN;
-    const dtm = String(!isNaN(parsedDtm) ? parsedDtm : Date.now());
-
-    return {
-      schema: 'iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4',
-      data: [
-        {
-          e: 'se',
-          se_ca: params.category,
-          se_ac: params.action,
-          se_la: params.label,
-          se_pr: params.property,
-          se_va: params.value !== undefined ? String(params.value) : undefined,
-          eid: params.eventId ?? crypto.randomUUID(),
-          dtm,
-          tv: 'backend-producer-1.0.0',
-          p: 'srv'
-        }
-      ]
-    };
   }
 
   emitStructuredEvent(
