@@ -26,7 +26,6 @@ export class BatchService {
       const chunkPromises: Promise<unknown>[] = [];
 
       for (let i = chunkStart; i < chunkEnd; i++) {
-        const eventId = crypto.randomUUID();
         const timestamp = new Date().toISOString();
 
         chunkPromises.push(
@@ -35,7 +34,6 @@ export class BatchService {
             action: 'batch_event',
             label: `batch_item_${i + 1}`,
             value: i + 1,
-            eventId,
             timestamp,
             eventType: 'backend_batch'
           })

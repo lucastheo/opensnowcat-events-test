@@ -36,7 +36,6 @@ describe('TimestampService', () => {
           label: 'UTC',
           property: result.formattedLocal,
           eventType: 'backend_api',
-          eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
           timestamp: result.timestampIso
         })
       );

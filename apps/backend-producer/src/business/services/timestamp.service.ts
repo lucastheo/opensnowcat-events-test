@@ -16,7 +16,6 @@ export class TimestampService {
 
     const now = new Date();
     const timestamp = now.toISOString();
-    const eventId = crypto.randomUUID();
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const formattedLocal = `${pad(now.getUTCDate())}/${pad(now.getUTCMonth() + 1)}/${now.getUTCFullYear()}, ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
@@ -26,7 +25,6 @@ export class TimestampService {
       action: 'timestamp',
       label: tz,
       property: formattedLocal,
-      eventId,
       timestamp,
       eventType: 'backend_api'
     });

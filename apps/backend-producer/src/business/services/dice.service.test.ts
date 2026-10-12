@@ -42,7 +42,6 @@ describe('DiceService', () => {
           property: result.rolls.join(','),
           value: result.total,
           eventType: 'backend_api',
-          eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
           timestamp: expect.any(String)
         })
       );

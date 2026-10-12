@@ -44,7 +44,6 @@ describe('BatchService', () => {
           label: 'batch_item_1',
           value: 1,
           eventType: 'backend_batch',
-          eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
           timestamp: expect.any(String)
         })
       );
@@ -83,14 +82,14 @@ describe('BatchService', () => {
       }
     });
 
-    it('generates distinct eventIds for each batch event', async () => {
+    it('dispatches batch events with unique labels for each batch event', async () => {
       await service.emitBatch({ count: 5 });
 
       const calls = vi.mocked(dispatchDualEmission).mock.calls;
-      const eventIds = calls.map((c) => c[0].eventId);
-      const uniqueEventIds = new Set(eventIds);
+      const labels = calls.map((c) => c[0].label);
+      const uniqueLabels = new Set(labels);
 
-      expect(uniqueEventIds.size).toBe(5);
+      expect(uniqueLabels.size).toBe(5);
     });
 
     it('verifies chunked execution behavior across multiple chunks (count=12 across 3 chunks: 5 + 5 + 2)', async () => {
@@ -103,13 +102,6 @@ describe('BatchService', () => {
 
       expect(dispatchDualEmission).toHaveBeenCalledTimes(12);
 
-      const calls = vi.mocked(dispatchDualEmission).mock.calls;
-      const eventIds = calls.map((c) => c[0].eventId);
-      const uniqueEventIds = new Set(eventIds);
-
-      // Verify all 12 events have distinct eventIds
-      expect(uniqueEventIds.size).toBe(12);
-
       // Verify all 12 events are dispatched with sequential indices (batch_item_1 to batch_item_12)
       for (let i = 1; i <= 12; i++) {
         expect(dispatchDualEmission).toHaveBeenNthCalledWith(
@@ -120,7 +112,6 @@ describe('BatchService', () => {
             label: `batch_item_${i}`,
             value: i,
             eventType: 'backend_batch',
-            eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
             timestamp: expect.any(String)
           })
         );
@@ -150,7 +141,7 @@ describe('BatchService', () => {
         }
 
         return {
-          eventId: params.eventId ?? 'test-event-id',
+          eventId: 'test-event-id',
           timestamp: params.timestamp ?? '2026-10-11T12:00:00.000Z'
         };
       });

@@ -58,30 +58,35 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
 
     // 7. Verify deterministic parity: event_id and timestamp match across external services for all 5 events
     const oscCalls = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.calls;
+    const oscResults = await Promise.all(
+      vi.mocked(openSnowcatClient.emitStructuredEvent).mock.results.map(r => r.value)
+    );
     const scCalls = vi.mocked(simpleCollectorClient.record).mock.calls;
 
-    const oscEventIds = oscCalls.map(c => c[0].eventId);
+    const oscEventIds = oscResults.map(r => r.eventId);
     const scEventIds = scCalls.map(c => c[0].event_id);
 
     // Ensure all event IDs are unique across emissions
     const uniqueOscIds = new Set(oscEventIds);
     expect(uniqueOscIds.size).toBe(5);
 
-    // Each OpenSnowcat call should match a corresponding Simple Collector call
+    // OpenSnowcat payloads have required fields
     for (const oscCall of oscCalls) {
       const payload = oscCall[0];
       expect(payload).toEqual(
         expect.objectContaining({
           category: 'backend_service',
           action: 'batch_event',
-          eventId: expect.any(String),
           timestamp: expect.any(String)
         })
       );
+    }
 
-      const matchingScCall = scCalls.find(sc => sc[0].event_id === payload.eventId);
+    // Each OpenSnowcat result matches a corresponding Simple Collector call
+    for (const oscResult of oscResults) {
+      const matchingScCall = scCalls.find(sc => sc[0].event_id === oscResult.eventId);
       expect(matchingScCall).toBeDefined();
-      expect(matchingScCall![0].timestamp).toBe(payload.timestamp);
+      expect(matchingScCall![0].timestamp).toBe(oscResult.timestamp);
       expect(matchingScCall![0].source).toBe('backend');
       expect(matchingScCall![0].event_type).toBe('backend_batch');
     }
@@ -102,7 +107,7 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
       await new Promise(resolve => setTimeout(resolve, 5));
       activeOscConcurrent--;
       return {
-        eventId: (params as any)?.eventId ?? crypto.randomUUID(),
+        eventId: crypto.randomUUID(),
         timestamp: (params as any)?.timestamp ?? new Date().toISOString()
       };
     });

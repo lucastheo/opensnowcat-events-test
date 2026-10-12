@@ -45,7 +45,6 @@ describe('ExcuseService', () => {
         action: 'daily_excuse',
         label: excuse.excuse,
         value: excuse.id,
-        eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         timestamp: expect.any(String),
         eventType: 'backend_api'
       });

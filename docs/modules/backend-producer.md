@@ -225,9 +225,10 @@ The Business Layer encapsulates all business rules, domain entities, tracking me
   - [`batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts): Processes bulk events in sequential chunks of 5 (`CHUNK_SIZE = 5`) using `Promise.all` per chunk. This chunked execution pattern prevents socket exhaustion (never exceeding 10 concurrent outgoing sockets for dual emission — 5 to OpenSnowcat and 5 to Simple Collector) and prevents overwhelming downstream consumers like `simple-collector`'s FIFO Promise CSV write queue or OpenSnowcat.
 
 - **Dual Emission Tracking Dispatcher ([`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts)):**
-  - Encapsulates dual emission dispatch logic used across all business services.
-  - Generates unified `eventId` (UUIDv4) and `timestamp` (ISO-8601 UTC).
-  - Concurrently dispatches tracking to OpenSnowcat (`openSnowcatClient.emitStructuredEvent`) and audit records to Simple Collector (`simpleCollectorClient.record`), guaranteeing 100% telemetry and audit parity.
+  - Encapsulates dual emission dispatch logic used across all business services (`dispatchDualEmission`).
+  - Emits tracking events to OpenSnowcat via official `@snowplow/node-tracker` without requiring `eventId` in `DualEmissionParams`.
+  - Extracts the resulting `eventId` from OpenSnowcat (falling back to nil zeros UUID `00000000-0000-0000-0000-000000000000` if OpenSnowcat does not return an event ID) and `timestamp` (ISO-8601 UTC).
+  - Sequentially records audit logs to Simple Collector (`simpleCollectorClient.record`) with identical `eventId` and `timestamp`, guaranteeing telemetry and audit parity.
 
 ---
 
@@ -465,7 +466,7 @@ Every source file in the repository has a companion `*.test.ts` file colocated i
 | [`src/app/api/batch/route.ts`](../../apps/backend-producer/src/app/api/batch/route.ts) | [`src/app/api/batch/route.test.ts`](../../apps/backend-producer/src/app/api/batch/route.test.ts) | Count parameter validation, batch execution delegation. |
 | [`src/app/api/health/route.ts`](../../apps/backend-producer/src/app/api/health/route.ts) | [`src/app/api/health/route.test.ts`](../../apps/backend-producer/src/app/api/health/route.test.ts) | Health check endpoint response and status. |
 | [`src/business/errors/business.error.ts`](../../apps/backend-producer/src/business/errors/business.error.ts) | [`src/business/errors/business.error.test.ts`](../../apps/backend-producer/src/business/errors/business.error.test.ts) | BusinessError base class and domain error subclasses. |
-| [`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts) | [`src/business/tracking.dispatcher.test.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.test.ts) | Dual emission dispatch, UUID/timestamp generation and parity across clients. |
+| [`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts) | [`src/business/tracking.dispatcher.test.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.test.ts) | Dual emission dispatch, zeros UUID fallback, timestamp generation, and parity across clients. |
 | [`src/business/services/calc.service.ts`](../../apps/backend-producer/src/business/services/calc.service.ts) | [`src/business/services/calc.service.test.ts`](../../apps/backend-producer/src/business/services/calc.service.test.ts) | Math operations (`+`, `-`, `*`, `/`), division by zero error, event metadata. |
 | [`src/business/services/timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts) | [`src/business/services/timestamp.service.test.ts`](../../apps/backend-producer/src/business/services/timestamp.service.test.ts) | Timezone calculations, formatted string output. |
 | [`src/business/services/excuse.service.ts`](../../apps/backend-producer/src/business/services/excuse.service.ts) | [`src/business/services/excuse.service.test.ts`](../../apps/backend-producer/src/business/services/excuse.service.test.ts) | Random selection, non-empty text, pool coverage. |

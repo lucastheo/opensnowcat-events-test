@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { dispatchDualEmission, type DualEmissionParams } from './tracking.dispatcher';
+import { dispatchDualEmission, ZERO_UUID, type DualEmissionParams } from './tracking.dispatcher';
 import { openSnowcatClient } from '@/external/opensnowcat.client';
 import { simpleCollectorClient } from '@/external/simple-collector.client';
 
@@ -111,33 +111,32 @@ describe('Tracking Dispatcher (dispatchDualEmission)', () => {
   });
 
   describe('fallback handling when openSnowcatClient returns null or missing identifiers', () => {
-    it('falls back to params.eventId and params.timestamp when provided and openSnowcatClient returns null', async () => {
+    it('returns zeros uuid and uses params.timestamp when openSnowcatClient returns null and timestamp is provided', async () => {
       vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce(null);
 
-      const customEventId = 'preset-uuid-0001';
       const customTimestamp = '2026-10-11T10:00:00.000Z';
 
       const params: DualEmissionParams = {
         category: 'backend_service',
         action: 'test_action',
-        eventId: customEventId,
         timestamp: customTimestamp
       };
 
       const result = await dispatchDualEmission(params);
 
-      expect(result.eventId).toBe(customEventId);
+      expect(result.eventId).toBe(ZERO_UUID);
+      expect(result.eventId).toBe('00000000-0000-0000-0000-000000000000');
       expect(result.timestamp).toBe(customTimestamp);
 
       expect(simpleCollectorClient.record).toHaveBeenCalledWith({
-        event_id: customEventId,
+        event_id: ZERO_UUID,
         timestamp: customTimestamp,
         source: 'backend',
         event_type: 'backend_api'
       });
     });
 
-    it('generates random UUIDv4 and current timestamp with exact parity when openSnowcatClient returns null without params overrides', async () => {
+    it('returns zeros uuid and generated ISO timestamp when openSnowcatClient returns null without params overrides', async () => {
       vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce(null);
 
       const params: DualEmissionParams = {
@@ -147,14 +146,37 @@ describe('Tracking Dispatcher (dispatchDualEmission)', () => {
 
       const result = await dispatchDualEmission(params);
 
-      // Validate UUIDv4 format
-      expect(result.eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-      // Validate ISO timestamp format
+      expect(result.eventId).toBe(ZERO_UUID);
+      expect(result.eventId).toBe('00000000-0000-0000-0000-000000000000');
       expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
 
       expect(simpleCollectorClient.record).toHaveBeenCalledWith({
-        event_id: result.eventId,
+        event_id: ZERO_UUID,
         timestamp: result.timestamp,
+        source: 'backend',
+        event_type: 'backend_api'
+      });
+    });
+
+    it('returns zeros uuid when openSnowcatClient returns an object with empty eventId', async () => {
+      vi.mocked(openSnowcatClient.emitStructuredEvent).mockResolvedValueOnce({
+        eventId: '',
+        timestamp: '2026-10-11T12:00:00.000Z'
+      });
+
+      const params: DualEmissionParams = {
+        category: 'backend_service',
+        action: 'test_action'
+      };
+
+      const result = await dispatchDualEmission(params);
+
+      expect(result.eventId).toBe(ZERO_UUID);
+      expect(result.timestamp).toBe('2026-10-11T12:00:00.000Z');
+
+      expect(simpleCollectorClient.record).toHaveBeenCalledWith({
+        event_id: ZERO_UUID,
+        timestamp: '2026-10-11T12:00:00.000Z',
         source: 'backend',
         event_type: 'backend_api'
       });

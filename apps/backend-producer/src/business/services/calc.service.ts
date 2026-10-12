@@ -34,7 +34,6 @@ export class CalcService {
         throw new UnsupportedOperatorError(operator);
     }
 
-    const eventId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
     await dispatchDualEmission({
@@ -43,7 +42,6 @@ export class CalcService {
       label: operator,
       property: `${a}${operator}${b}`,
       value: result,
-      eventId,
       timestamp,
       eventType: 'backend_api'
     });

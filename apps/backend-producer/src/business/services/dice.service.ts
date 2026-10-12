@@ -24,7 +24,6 @@ export class DiceService {
     }
     const total = rolls.reduce((acc, curr) => acc + curr, 0);
 
-    const eventId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
     await dispatchDualEmission({
@@ -33,7 +32,6 @@ export class DiceService {
       label: sides,
       property: rolls.join(','),
       value: total,
-      eventId,
       timestamp,
       eventType: 'backend_api'
     });

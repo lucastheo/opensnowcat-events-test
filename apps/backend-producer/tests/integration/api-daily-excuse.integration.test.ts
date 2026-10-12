@@ -49,7 +49,6 @@ describe('Integration Test: GET /api/daily-excuse Full Flow', () => {
         action: 'daily_excuse',
         label: responseBody.excuse,
         value: responseBody.id,
-        eventId: expect.any(String),
         timestamp: expect.any(String)
       })
     );
@@ -65,11 +64,11 @@ describe('Integration Test: GET /api/daily-excuse Full Flow', () => {
       })
     );
 
-    // 6. Verify deterministic parity: event_id and timestamp match across external services
-    const openSnowcatCall = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.calls[0][0];
+    // 6. Verify deterministic parity: resulting event_id and timestamp from OpenSnowcat match Simple Collector audit record
+    const snowcatResult = await vi.mocked(openSnowcatClient.emitStructuredEvent).mock.results[0].value;
     const simpleCollectorCall = vi.mocked(simpleCollectorClient.record).mock.calls[0][0];
-    expect(openSnowcatCall.eventId).toBe(simpleCollectorCall.event_id);
-    expect(openSnowcatCall.timestamp).toBe(simpleCollectorCall.timestamp);
+    expect(simpleCollectorCall.event_id).toBe(snowcatResult.eventId);
+    expect(simpleCollectorCall.timestamp).toBe(snowcatResult.timestamp);
 
     // 7. Verify sequential flow: OpenSnowcat is invoked before Simple Collector
     const oscOrder = vi.mocked(openSnowcatClient.emitStructuredEvent).mock.invocationCallOrder[0];

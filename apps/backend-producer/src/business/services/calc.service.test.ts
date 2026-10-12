@@ -41,7 +41,6 @@ describe('CalcService', () => {
           property: '12+4',
           value: 16,
           eventType: 'backend_api',
-          eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
           timestamp: expect.any(String)
         })
       );
