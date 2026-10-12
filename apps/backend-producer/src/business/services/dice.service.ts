@@ -24,15 +24,12 @@ export class DiceService {
     }
     const total = rolls.reduce((acc, curr) => acc + curr, 0);
 
-    const timestamp = new Date().toISOString();
-
     await dispatchDualEmission({
       category: 'backend_service',
       action: 'dice_roll',
       label: sides,
       property: rolls.join(','),
       value: total,
-      timestamp,
       eventType: 'backend_api'
     });
 

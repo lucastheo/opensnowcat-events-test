@@ -35,8 +35,7 @@ describe('TimestampService', () => {
           action: 'timestamp',
           label: 'UTC',
           property: result.formattedLocal,
-          eventType: 'backend_api',
-          timestamp: result.timestampIso
+          eventType: 'backend_api'
         })
       );
     });

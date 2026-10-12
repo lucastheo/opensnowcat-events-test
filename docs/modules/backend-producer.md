@@ -226,7 +226,7 @@ The Business Layer encapsulates all business rules, domain entities, tracking me
 
 - **Dual Emission Tracking Dispatcher ([`src/business/tracking.dispatcher.ts`](../../apps/backend-producer/src/business/tracking.dispatcher.ts)):**
   - Encapsulates dual emission dispatch logic used across all business services (`dispatchDualEmission`).
-  - Emits tracking events to OpenSnowcat via official `@snowplow/node-tracker` without requiring `eventId` in `DualEmissionParams`.
+  - Emits tracking events to OpenSnowcat via official `@snowplow/node-tracker` without requiring `eventId` or `timestamp` in `DualEmissionParams`.
   - Extracts the resulting `eventId` from OpenSnowcat (falling back to nil zeros UUID `00000000-0000-0000-0000-000000000000` if OpenSnowcat does not return an event ID) and `timestamp` (ISO-8601 UTC).
   - Sequentially records audit logs to Simple Collector (`simpleCollectorClient.record`) with identical `eventId` and `timestamp`, guaranteeing telemetry and audit parity.
 

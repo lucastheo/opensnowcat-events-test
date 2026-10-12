@@ -43,8 +43,7 @@ describe('BatchService', () => {
           action: 'batch_event',
           label: 'batch_item_1',
           value: 1,
-          eventType: 'backend_batch',
-          timestamp: expect.any(String)
+          eventType: 'backend_batch'
         })
       );
       expect(dispatchDualEmission).toHaveBeenNthCalledWith(
@@ -111,8 +110,7 @@ describe('BatchService', () => {
             action: 'batch_event',
             label: `batch_item_${i}`,
             value: i,
-            eventType: 'backend_batch',
-            timestamp: expect.any(String)
+            eventType: 'backend_batch'
           })
         );
       }
@@ -142,7 +140,7 @@ describe('BatchService', () => {
 
         return {
           eventId: 'test-event-id',
-          timestamp: params.timestamp ?? '2026-10-11T12:00:00.000Z'
+          timestamp: '2026-10-11T12:00:00.000Z'
         };
       });
 

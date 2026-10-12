@@ -40,8 +40,7 @@ describe('CalcService', () => {
           label: '+',
           property: '12+4',
           value: 16,
-          eventType: 'backend_api',
-          timestamp: expect.any(String)
+          eventType: 'backend_api'
         })
       );
     });

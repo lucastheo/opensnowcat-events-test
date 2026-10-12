@@ -25,7 +25,6 @@ export class TimestampService {
       action: 'timestamp',
       label: tz,
       property: formattedLocal,
-      timestamp,
       eventType: 'backend_api'
     });
 

@@ -53,8 +53,7 @@ describe('Integration Test: POST /api/calc Full Flow', () => {
       expect.objectContaining({
         category: 'backend_service',
         action: 'calculate',
-        value: 40,
-        timestamp: expect.any(String)
+        value: 40
       })
     );
 

@@ -10,7 +10,6 @@ export interface DualEmissionParams {
   label?: string;
   property?: string;
   value?: number;
-  timestamp?: string;
   eventType?: string;
 }
 
@@ -31,7 +30,7 @@ export async function dispatchDualEmission(
   const snowcatResult = await openSnowcatClient.emitStructuredEvent(params);
 
   const eventId = snowcatResult?.eventId || ZERO_UUID;
-  const timestamp = snowcatResult?.timestamp ?? params.timestamp ?? new Date().toISOString();
+  const timestamp = snowcatResult?.timestamp ?? new Date().toISOString();
 
   await simpleCollectorClient.record({
     event_id: eventId,

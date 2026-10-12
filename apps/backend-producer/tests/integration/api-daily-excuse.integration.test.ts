@@ -48,8 +48,7 @@ describe('Integration Test: GET /api/daily-excuse Full Flow', () => {
         category: 'backend_service',
         action: 'daily_excuse',
         label: responseBody.excuse,
-        value: responseBody.id,
-        timestamp: expect.any(String)
+        value: responseBody.id
       })
     );
 

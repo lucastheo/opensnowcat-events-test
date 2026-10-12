@@ -61,8 +61,7 @@ describe('Integration Test: POST /api/dice Full Flow', () => {
         action: 'dice_roll',
         label: 'd20',
         property: responseBody.rolls.join(','),
-        value: responseBody.total,
-        timestamp: expect.any(String)
+        value: responseBody.total
       })
     );
 

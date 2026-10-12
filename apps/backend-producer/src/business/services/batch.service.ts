@@ -26,15 +26,12 @@ export class BatchService {
       const chunkPromises: Promise<unknown>[] = [];
 
       for (let i = chunkStart; i < chunkEnd; i++) {
-        const timestamp = new Date().toISOString();
-
         chunkPromises.push(
           dispatchDualEmission({
             category: 'backend_service',
             action: 'batch_event',
             label: `batch_item_${i + 1}`,
             value: i + 1,
-            timestamp,
             eventType: 'backend_batch'
           })
         );

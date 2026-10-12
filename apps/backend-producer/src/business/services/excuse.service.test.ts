@@ -45,7 +45,6 @@ describe('ExcuseService', () => {
         action: 'daily_excuse',
         label: excuse.excuse,
         value: excuse.id,
-        timestamp: expect.any(String),
         eventType: 'backend_api'
       });
     });

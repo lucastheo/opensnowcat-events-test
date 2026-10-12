@@ -56,8 +56,7 @@ describe('Integration Test: POST /api/timestamp Full Flow', () => {
         category: 'backend_service',
         action: 'timestamp',
         label: 'America/Sao_Paulo',
-        property: responseBody.formatted_local,
-        timestamp: expect.any(String)
+        property: responseBody.formatted_local
       })
     );
 

@@ -41,8 +41,7 @@ describe('DiceService', () => {
           label: 'd6',
           property: result.rolls.join(','),
           value: result.total,
-          eventType: 'backend_api',
-          timestamp: expect.any(String)
+          eventType: 'backend_api'
         })
       );
     });

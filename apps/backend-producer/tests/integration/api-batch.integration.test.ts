@@ -76,8 +76,7 @@ describe('Integration Test: POST /api/batch Full Flow', () => {
       expect(payload).toEqual(
         expect.objectContaining({
           category: 'backend_service',
-          action: 'batch_event',
-          timestamp: expect.any(String)
+          action: 'batch_event'
         })
       );
     }

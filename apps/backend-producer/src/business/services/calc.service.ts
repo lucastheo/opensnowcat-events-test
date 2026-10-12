@@ -34,15 +34,12 @@ export class CalcService {
         throw new UnsupportedOperatorError(operator);
     }
 
-    const timestamp = new Date().toISOString();
-
     await dispatchDualEmission({
       category: 'backend_service',
       action: 'calculate',
       label: operator,
       property: `${a}${operator}${b}`,
       value: result,
-      timestamp,
       eventType: 'backend_api'
     });
 
