@@ -498,28 +498,34 @@ Verifies that behavioral events and audit records are emitted accurately:
 
 ### 8.2 How Tests Will Be Executed
 
-The testing setup uses **Vitest** + **React Testing Library** for fast in-memory component and tracking tests, and **Playwright** for end-to-end integration tests.
+The testing setup uses **Vitest** + **React Testing Library** for fast in-memory unit and integration tests (mocking external network services), and **Playwright** via Module 1 (Test Bot) for end-to-end container integration tests.
 
 #### Test Tooling & Environment:
 - **Test Runner:** **Vitest** (native ESM support on Node.js 26, ultra-fast Vite integration)
-- **DOM Simulation:** **jsdom** / **happy-dom**
-- **Component Testing:** **@testing-library/react** + **@testing-library/user-event**
-- **Mocking:** Vitest native mocks (`vi.fn()`, `vi.spyOn()`) for `@snowplow/browser-tracker` and `fetch`.
+- **DOM Simulation:** **jsdom**
+- **Component & Integration Testing:** **@testing-library/react** + **@testing-library/user-event**
+- **Mocking:** Vitest native mocks (`vi.fn()`, `vi.spyOn()`) for `@snowplow/browser-tracker` and `fetch` (mocking external network services only in accordance with AGENTS.md Rule 7).
 
 #### Execution Commands:
 
 ```bash
-# 1. Run all unit and component tests
-npm run test
+# 1. Run all unit and integration tests
+npm test
 
-# 2. Run tests in watch mode (re-runs on file changes)
+# 2. Run unit tests only
+npm run test:unit
+
+# 3. Run integration tests only
+npm run test:integration
+
+# 4. Run tests in watch mode (re-runs on file changes)
 npm run test:watch
 
-# 3. Run tests with coverage report
+# 5. Run tests with coverage report
 npm run test:coverage
 
-# 4. Run end-to-end user journey tests (requires running backend/collector)
-npm run test:e2e
+# 6. Type-check TypeScript files
+npm run type-check
 ```
 
 #### Example Test Implementation (Tracking & Delegation Test):
