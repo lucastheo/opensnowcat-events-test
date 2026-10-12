@@ -153,11 +153,13 @@ apps/backend-producer/
 │   │       ├── batch.service.ts            # Bulk event loop orchestrator
 │   │       └── batch.service.test.ts       # Service unit tests
 │   │
-│   └── external/                           # 3. EXTERNAL LAYER (Third-Party Clients)
-│       ├── opensnowcat.client.ts           # OpenSnowcat Stream Collector client (/tp2)
-│       ├── opensnowcat.client.test.ts      # Client unit tests
-│       ├── simple-collector.client.ts      # Simple Collector audit client (/collect)
-│       └── simple-collector.client.test.ts # Client unit tests
+│   ├── external/                           # 3. EXTERNAL LAYER (Third-Party Clients)
+│   │   ├── opensnowcat.client.ts           # OpenSnowcat Stream Collector client (/tp2)
+│   │   ├── opensnowcat.client.test.ts      # Client unit tests
+│   │   ├── simple-collector.client.ts      # Simple Collector audit client (/collect)
+│   │   └── simple-collector.client.test.ts # Client unit tests
+│   ├── middleware.ts                       # Next.js Middleware (CORS & OPTIONS preflight)
+│   └── middleware.test.ts                  # Middleware unit tests
 └── tests/
     └── integration/                        # Full API lifecycle tests (external clients mocked)
         ├── api-calc.integration.test.ts
@@ -165,7 +167,8 @@ apps/backend-producer/
         ├── api-daily-excuse.integration.test.ts
         ├── api-dice.integration.test.ts
         ├── api-batch.integration.test.ts
-        └── api-health.integration.test.ts
+        ├── api-health.integration.test.ts
+        └── cors.integration.test.ts
 ```
 
 ---
@@ -245,6 +248,30 @@ The External Layer manages outbound HTTP communication with external services, i
   - Targets `POST ${SIMPLE_COLLECTOR_URL}/collect`.
   - Dispatches audit record `{ event_id, timestamp, source: "backend", event_type: "backend_api" }`.
   - Catches and logs errors without bubbling to preserve business request flow.
+
+---
+
+### 5.4 Cross-Origin Resource Sharing (CORS) & Middleware (`src/middleware.ts`)
+
+The Frontend application (running on port 3000 in browser) delegates calculations, timestamps, excuses, and dice rolls to the Backend Producer (running on port 4000). To support cross-origin browser requests without being blocked by CORS policies, the Backend Producer implements centralized CORS handling with [`src/middleware.ts`](../../apps/backend-producer/src/middleware.ts) as the single source of truth:
+
+1. **Next.js Middleware Single Source of Truth ([`src/middleware.ts`](../../apps/backend-producer/src/middleware.ts)):**
+   - **Shared Constants:**
+     - `ALLOWED_METHODS`: `'GET, POST, OPTIONS'` (Backend only serves GET and POST endpoints)
+     - `ALLOWED_HEADERS`: `'Content-Type, Authorization, X-Requested-With'`
+     - `MAX_AGE`: `'86400'`
+   - **Matcher Config:** Intercepts requests matching `['/api/:path*']`.
+   - **Path Filter:** Checks `pathname === '/api' || pathname.startsWith('/api/')` so root `/api` and subpaths `/api/*` are handled consistently. Non-API paths pass through without modification.
+   - **OPTIONS Preflight Requests:** When a browser issues an HTTP `OPTIONS` preflight call, the middleware short-circuits execution and returns `HTTP 204 No Content` with the following headers:
+     - `Access-Control-Allow-Origin`: `process.env.CORS_ORIGIN || '*'`
+     - `Access-Control-Allow-Methods`: `ALLOWED_METHODS` (`'GET, POST, OPTIONS'`)
+     - `Access-Control-Allow-Headers`: `ALLOWED_HEADERS` (`'Content-Type, Authorization, X-Requested-With'`)
+     - `Access-Control-Max-Age`: `MAX_AGE` (`'86400'`)
+   - **Normal Requests:** Passes requests through via `NextResponse.next()` and attaches CORS headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`) without `Access-Control-Max-Age`.
+   - **Environment Configuration:** Respects the `CORS_ORIGIN` environment variable (defaulting to `*` if unspecified).
+
+2. **Next.js Server Configuration ([`next.config.ts`](../../apps/backend-producer/next.config.ts)):**
+   - Retains only `output: 'standalone'` without custom `headers()`. Defining CORS headers in both `next.config.ts` and `src/middleware.ts` causes Next.js to append duplicate headers (`Access-Control-Allow-Origin: *, *`), which browsers reject under CORS specifications. Centralizing in `src/middleware.ts` prevents header duplication.
 
 ---
 
@@ -373,7 +400,7 @@ See [`package.json`](../../apps/backend-producer/package.json) for scripts and d
 ### `tsconfig.json` & `next.config.ts`
 
 - See [`tsconfig.json`](../../apps/backend-producer/tsconfig.json): ES2022 target, NodeNext / Bundler module resolution, strict mode, path alias `@/*` pointing to `./src/*`.
-- See [`next.config.ts`](../../apps/backend-producer/next.config.ts): Configures Next.js standalone output.
+- See [`next.config.ts`](../../apps/backend-producer/next.config.ts): Configures Next.js standalone output and defines CORS headers for `/api/:path*`.
 
 ### Environment Variables
 
@@ -381,6 +408,7 @@ See [`package.json`](../../apps/backend-producer/package.json) for scripts and d
 |---|---|---|
 | `PORT` | `4000` | Port on which the Next.js service listens. |
 | `HOSTNAME` | `0.0.0.0` | Host binding interface for standalone server. |
+| `CORS_ORIGIN` | `*` | Allowed origin for Cross-Origin Resource Sharing (CORS). |
 | `OPENSNOWCAT_COLLECTOR_URL` | `http://localhost:8080` | Target OpenSnowcat Stream Collector endpoint. |
 | `SIMPLE_COLLECTOR_URL` | `http://localhost:5000` | Simple Collector audit service endpoint. |
 
@@ -475,6 +503,7 @@ Integration tests live in [`tests/integration/`](../../apps/backend-producer/tes
 - [`api-dice.integration.test.ts`](../../apps/backend-producer/tests/integration/api-dice.integration.test.ts): Verifies `POST /api/dice` handles roll count and sides correctly with external tracking.
 - [`api-batch.integration.test.ts`](../../apps/backend-producer/tests/integration/api-batch.integration.test.ts): Verifies `POST /api/batch` emits the specified number of events to external clients.
 - [`api-health.integration.test.ts`](../../apps/backend-producer/tests/integration/api-health.integration.test.ts): Verifies `GET /api/health` returns status ok without external dispatch.
+- [`cors.integration.test.ts`](../../apps/backend-producer/tests/integration/cors.integration.test.ts): Verifies CORS headers across API endpoints, OPTIONS preflight short-circuiting without backend side effects, and custom `CORS_ORIGIN` support.
 
 ---
 
@@ -508,5 +537,6 @@ npm run test:coverage
 | **Colocated DTO Schemas** | Each route collocates Zod schemas (`schema.ts`) with route handlers (`route.ts`), enforcing strong input/output type safety. |
 | **Domain Object Isolation** | Domain entities (`src/business/domain/`) remain internal to the Business layer; only mapped Schema Objects are exposed over HTTP. |
 | **Dual Emission Parity** | `dispatchDualEmission` sends tracking to OpenSnowcat (`/tp2`) and audit ping to Simple Collector (`/collect`) with identical `eventId` and `timestamp`. |
-| **1:1 Unit Testing** | 18 source files each accompanied by a 1:1 colocated `*.test.ts` file in the same directory. |
+| **CORS & Preflight Handling** | `src/middleware.ts` handles HTTP 204 OPTIONS preflights and adds CORS headers for `/api/*` requests with configurable `CORS_ORIGIN`. |
+| **1:1 Unit Testing** | 19 source files each accompanied by a 1:1 colocated `*.test.ts` file in the same directory. |
 | **Strict Integration Tests** | Full lifecycle tests in `tests/integration/` where only external network clients are mocked. |

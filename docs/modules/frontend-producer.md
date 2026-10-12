@@ -54,39 +54,7 @@ sequenceDiagram
 - **Routing:** **React Router v7 / v6** (Client-side routing across 5 pages)
 - **Tracker SDK:** `@snowplow/browser-tracker`
 - **Port:** `3000`
-
-### Dependencies (`package.json` snippet)
-```json
-{
-  "name": "opensnowcat-frontend",
-  "version": "1.0.0",
-  "type": "module",
-  "engines": {
-    "node": ">=26.0.0"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
-  },
-  "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0",
-    "@snowplow/browser-tracker": "^3.12.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.0",
-    "vite": "^6.0.0",
-    "vitest": "^2.1.0",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.0",
-    "jsdom": "^25.0.0"
-  }
-}
-```
+- **Dependencies Configuration:** Complete list of runtime and developer dependencies is defined in [`package.json`](../../apps/frontend-producer/package.json).
 
 ### 3.1 Directory Layout
 
@@ -100,6 +68,10 @@ apps/frontend-producer/
 ├── src/
 │   ├── main.tsx                     # Entrypoint & Router setup
 │   ├── App.tsx                      # App layout & navigation header
+│   ├── styles.css                   # Global responsive styling & themes
+│   ├── vite-env.d.ts                # Vite environment typings
+│   ├── config/                      # Environment variables & runtime config
+│   │   └── env.ts                   # Centralized typed configuration
 │   ├── pages/                       # 5 Application pages
 │   │   ├── HomePage.tsx             # / (Dashboard & event counter)
 │   │   ├── CalcPage.tsx             # /calc (Delegates to backend POST /api/calc)
@@ -107,51 +79,42 @@ apps/frontend-producer/
 │   │   ├── ExcusePage.tsx           # /excuse (Delegates to backend GET /api/daily-excuse)
 │   │   └── DicePage.tsx             # /dice (Delegates to backend POST /api/dice)
 │   ├── tracker/                     # OpenSnowcat tracker & Simple Collector reporter
-│   │   ├── snowcat.ts               # OpenSnowcat JS SDK initialization
-│   │   └── simple-collector.ts      # Audit HTTP ping (POST /collect)
+│   │   ├── snowcat.ts               # OpenSnowcat JS SDK initialization & lifecycle
+│   │   ├── simple-collector.ts      # Audit HTTP ping (POST /collect)
+│   │   └── event-emitter.ts         # Dual-emission orchestration & event mode state
 │   └── services/                    # API client delegating to Backend Producer
 │       └── backend-api.ts           # Fetch calls to backend (port 4000)
 └── tests/
     ├── setup.ts                     # Vitest setup & DOM polyfills
-    └── pages/                       # 1:1 Page & Component tests
-        ├── HomePage.test.tsx
-        ├── CalcPage.test.tsx
-        ├── TimestampPage.test.tsx
-        ├── ExcusePage.test.tsx
-        └── DicePage.test.tsx
+    ├── main.test.tsx                # 1:1 Unit test for main.tsx entrypoint
+    ├── App.test.tsx                 # 1:1 Unit test for App layout & header
+    ├── config/                      # Configuration unit tests
+    │   └── env.test.ts
+    ├── pages/                       # 1:1 Page & Component tests
+    │   ├── HomePage.test.tsx
+    │   ├── CalcPage.test.tsx
+    │   ├── TimestampPage.test.tsx
+    │   ├── ExcusePage.test.tsx
+    │   └── DicePage.test.tsx
+    ├── services/                    # Backend API client unit tests
+    │   └── backend-api.test.ts
+    ├── tracker/                     # Tracking subsystem unit tests
+    │   ├── snowcat.test.ts
+    │   ├── simple-collector.test.ts
+    │   └── event-emitter.test.ts
+    └── integration/                 # End-to-end component integration tests
+        ├── test-router.tsx
+        ├── calc.integration.test.tsx
+        ├── timestamp.integration.test.tsx
+        ├── excuse.integration.test.tsx
+        ├── dice.integration.test.tsx
+        ├── mode-toggle.integration.test.tsx
+        └── error-resilience.integration.test.tsx
 ```
 
-### 3.2 Dockerfile Specification (`apps/frontend-producer/Dockerfile`)
+### 3.2 Containerization
 
-```dockerfile
-FROM node:26-alpine AS builder
-WORKDIR /app
-COPY package*.json tsconfig.json vite.config.ts index.html ./
-RUN npm ci
-COPY src ./src
-ARG VITE_BACKEND_URL=http://localhost:4000
-ARG VITE_SIMPLE_COLLECTOR_URL=http://localhost:5000
-ARG VITE_OPENSNOWCAT_URL=http://localhost:8080
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
-ENV VITE_SIMPLE_COLLECTOR_URL=$VITE_SIMPLE_COLLECTOR_URL
-ENV VITE_OPENSNOWCAT_URL=$VITE_OPENSNOWCAT_URL
-RUN npm run build
-
-FROM nginx:alpine AS runner
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-RUN echo 'server { \
-    listen 3000; \
-    location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
-
-EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"]
-```
+The multi-stage container build (Node.js 26 builder + Nginx Alpine runner on port 3000) is specified in [`Dockerfile`](../../apps/frontend-producer/Dockerfile).
 
 ---
 
@@ -231,7 +194,7 @@ The application consists of **5 pages**:
   - Dice sides select (`#dice-select-sides`): `d4`, `d6`, `d8`, `d10`, `d12`, `d20`, `d100` (default: `d6`).
   - Roll Button (`#btn-roll-dice`): "Roll Dice"
 - **Backend API Endpoint:** `POST /api/dice`
-  - Request: `{ "count": 2, "sides": 6 }`
+  - Request: `{ "count": 2, "sides": "d6" }`
   - Response: `{ "rolls": [4, 6], "total": 10 }`
 - **Output Container:** `#dice-result` displays individual rolls and the total sum.
 
@@ -250,10 +213,10 @@ The frontend is specifically designed to emit **both No-Schema (standard) and Se
 │   │    (Standard / Out-of-the-box) │   │     (Iglu Schema-Based)   │   │
 │   ├────────────────────────────────┤   ├───────────────────────────┤   │
 │   │ • trackPageView(...)           │   │ • trackSelfDescribingEvent│   │
-│   │   - URL, title, referrer       │   │   - calc_event/1-0-0      │   │
-│   │ • trackStructEvent(...)        │   │   - timestamp_event/1-0-0 │   │
-│   │   - category, action, label,   │   │   - excuse_event/1-0-0    │   │
-│   │     property, value            │   │   - dice_event/1-0-0      │   │
+│   │   - URL, title, referrer       │   │   - anything-a/1-0-0      │   │
+│   │ • trackStructEvent(...)        │   │     (wildcard schema)     │   │
+│   │   - category, action, label,   │   │   - Calc, Timestamp,      │   │
+│   │     property, value            │   │     Excuse, Dice payloads │   │
 │   └────────────────────────────────┘   └───────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -264,127 +227,30 @@ The frontend is specifically designed to emit **both No-Schema (standard) and Se
 
 These events do not require custom Iglu schema registration and are supported natively by OpenSnowcat:
 
-#### 1. Page View Events (`trackPageView`)
-Emitted on initial load and whenever navigating between any of the 5 pages:
-```javascript
-const eventId = crypto.randomUUID();
-const timestamp = new Date().toISOString();
-
-snowplow('trackPageView', {
-  title: document.title,
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-
-// Audit to Simple Collector
-await reportToSimpleCollector(eventId, timestamp, 'frontend', 'page_view');
-```
-
-#### 2. Structured Events (`trackStructEvent`)
-Emitted on service button clicks:
-```javascript
-const eventId = crypto.randomUUID();
-const timestamp = new Date().toISOString();
-
-snowplow('trackStructEvent', {
-  category: 'service',
-  action: 'calculate',            // or 'fetch_timestamp', 'get_excuse', 'roll_dice'
-  label: 'addition',              // specific operation or sub-type
-  property: '12+4',               // parameters string
-  value: 16,                      // numeric result
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-
-// Audit to Simple Collector
-await reportToSimpleCollector(eventId, timestamp, 'frontend', 'struct_event');
-```
+- **Page View Events (`trackPageView`):** Emitted on initial load and route navigation transitions. Follow implementation in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
+- **Structured Events (`trackStructEvent`):** Emitted on service actions (`calculate`, `fetch_timestamp`, `get_excuse`, `roll_dice`) with `category`, `action`, `label`, `property`, and `value`. Follow implementation in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
 
 ---
 
 ### 5.2 Self-Describing Events (Iglu Schema-Based)
 
-Emitted via `trackSelfDescribingEvent` alongside or in conjunction with service actions. Each event conforms to a formal Iglu JSON Schema envelope:
+Emitted via `trackSelfDescribingEvent` alongside or in conjunction with service actions. To remain schema-agnostic and avoid requiring custom schema servers, all self-describing events use the official Iglu Central wildcard schema:
 
-```javascript
-snowplow('trackSelfDescribingEvent', {
-  event: {
-    schema: 'iglu:com.opensnowcat.test/<event_name>/jsonschema/1-0-0',
-    data: { /* typed payload */ }
-  },
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-```
+- **Schema URI:** `iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0` (defined as `ANYTHING_A_SCHEMA` in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts))
 
-#### Service Schemas:
-
-#### 1. Calculator Event (`calc_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0`
-- **Data Payload:**
-  ```json
-  {
-    "a": 12.0,
-    "b": 4.0,
-    "operator": "+",
-    "result": 16.0
-  }
-  ```
-
-#### 2. Timestamp Event (`timestamp_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/timestamp_event/jsonschema/1-0-0`
-- **Data Payload:**
-  ```json
-  {
-    "timezone": "America/Sao_Paulo",
-    "timestamp_iso": "2026-10-11T14:30:00.123Z"
-  }
-  ```
-
-#### 3. Daily Excuse Event (`excuse_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/excuse_event/jsonschema/1-0-0`
-- **Data Payload:**
-  ```json
-  {
-    "excuse_id": 42,
-    "excuse_text": "My Docker container is eating 100% CPU."
-  }
-  ```
-
-#### 4. Dice Roll Event (`dice_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/dice_event/jsonschema/1-0-0`
-- **Data Payload:**
-  ```json
-  {
-    "count": 2,
-    "sides": 6,
-    "rolls": [4, 6],
-    "total": 10
-  }
-  ```
+Follow the specific page files for event dispatching and payload shapes:
+- **Calculator:** [`src/pages/CalcPage.tsx`](../../apps/frontend-producer/src/pages/CalcPage.tsx) (`a`, `b`, `operator`, `result`)
+- **Location Timestamp:** [`src/pages/TimestampPage.tsx`](../../apps/frontend-producer/src/pages/TimestampPage.tsx) (`timezone`, `timestamp_iso`)
+- **Daily Excuse:** [`src/pages/ExcusePage.tsx`](../../apps/frontend-producer/src/pages/ExcusePage.tsx) (`excuse_id`, `excuse_text`)
+- **Dice Roll:** [`src/pages/DicePage.tsx`](../../apps/frontend-producer/src/pages/DicePage.tsx) (`count`, `sides`, `rolls`, `total`)
 
 ---
 
 ### 5.3 Audit Integration with Simple Collector
 
-For every emitted event (whether No-Schema or Self-Describing), a corresponding audit record is transmitted to the Simple Collector:
+For every emitted event (whether No-Schema or Self-Describing), a corresponding audit record (`event_id`, `timestamp`, `source: "frontend"`, `event_type`) is transmitted to the Simple Collector (`POST /collect`). Follow implementation in [`src/tracker/simple-collector.ts`](../../apps/frontend-producer/src/tracker/simple-collector.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
 
-```javascript
-async function reportToSimpleCollector(eventId, timestamp, source, eventType) {
-  await fetch(`${VITE_SIMPLE_COLLECTOR_URL}/collect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      event_id: eventId,
-      timestamp: timestamp,
-      source: source,
-      event_type: eventType  // e.g. "page_view", "struct_event", "self_describing"
-    })
-  });
-}
-```
-
-> **Note on Event Mode:** The frontend UI includes an **Event Mode Toggle** (`#event-mode-select`) with options:
+> **Note on Event Mode:** The frontend UI includes an **Event Mode Toggle** (`#event-mode-select`) managed by [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts):
 > - `both` (Default: fires both Structured and Self-Describing events on action)
 > - `no_schema_only` (Fires only No-Schema / Structured events)
 > - `self_describing_only` (Fires only Self-Describing events)
@@ -427,7 +293,7 @@ Summary of interactive components and element identifiers across the 5 pages:
 |---|---|---|
 | `PORT` | `3000` | Port for the React frontend development/production server. |
 | `VITE_BACKEND_URL` | `http://localhost:4000` | URL of the Backend Producer API service. |
-| `VITE_OPENSNOWCAT_COLLECTOR_URL`| `http://localhost:8080` | URL of the OpenSnowcat Stream Collector endpoint. |
+| `VITE_OPENSNOWCAT_COLLECTOR_URL` / `VITE_OPENSNOWCAT_URL` | `http://localhost:8080` | URL of the OpenSnowcat Stream Collector endpoint (supported interchangeably). |
 | `VITE_SIMPLE_COLLECTOR_URL` | `http://localhost:5000` | URL of the Simple Collector service. |
 
 > [!NOTE]
@@ -498,103 +364,36 @@ Verifies that behavioral events and audit records are emitted accurately:
 
 ### 8.2 How Tests Will Be Executed
 
-The testing setup uses **Vitest** + **React Testing Library** for fast in-memory component and tracking tests, and **Playwright** for end-to-end integration tests.
+The testing setup uses **Vitest** + **React Testing Library** for fast in-memory unit and integration tests (mocking external network services), and **Playwright** via Module 1 (Test Bot) for end-to-end container integration tests.
 
 #### Test Tooling & Environment:
 - **Test Runner:** **Vitest** (native ESM support on Node.js 26, ultra-fast Vite integration)
-- **DOM Simulation:** **jsdom** / **happy-dom**
-- **Component Testing:** **@testing-library/react** + **@testing-library/user-event**
-- **Mocking:** Vitest native mocks (`vi.fn()`, `vi.spyOn()`) for `@snowplow/browser-tracker` and `fetch`.
+- **DOM Simulation:** **jsdom**
+- **Component & Integration Testing:** **@testing-library/react** + **@testing-library/user-event**
+- **Mocking:** Vitest native mocks (`vi.fn()`, `vi.spyOn()`) for `@snowplow/browser-tracker` and `fetch` (mocking external network services only in accordance with AGENTS.md Rule 7).
 
 #### Execution Commands:
 
 ```bash
-# 1. Run all unit and component tests
-npm run test
+# 1. Run all unit and integration tests
+npm test
 
-# 2. Run tests in watch mode (re-runs on file changes)
+# 2. Run unit tests only
+npm run test:unit
+
+# 3. Run integration tests only
+npm run test:integration
+
+# 4. Run tests in watch mode (re-runs on file changes)
 npm run test:watch
 
-# 3. Run tests with coverage report
+# 5. Run tests with coverage report
 npm run test:coverage
 
-# 4. Run end-to-end user journey tests (requires running backend/collector)
-npm run test:e2e
-```
-
-#### Example Test Implementation (Tracking & Delegation Test):
-
-```javascript
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
-import CalcPage from '../pages/CalcPage';
-
-// Mock Tracker and Fetch
-vi.mock('@snowplow/browser-tracker', () => ({
-  trackStructEvent: vi.fn(),
-  trackSelfDescribingEvent: vi.fn(),
-  trackPageView: vi.fn()
-}));
-
-describe('Calculator Page - Service Delegation & Tracking', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    global.fetch = vi.fn().mockImplementation((url) => {
-      if (url.includes('/api/calc')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ result: 25 })
-        });
-      }
-      if (url.includes('/collect')) {
-        return Promise.resolve({ ok: true, status: 201 });
-      }
-      return Promise.reject(new Error('Unknown URL'));
-    });
-  });
-
-  it('delegates computation to backend and emits both tracking events', async () => {
-    render(
-      <MemoryRouter>
-        <CalcPage />
-      </MemoryRouter>
-    );
-
-    // 1. Fill form
-    fireEvent.change(screen.getByTestId('calc-input-a'), { target: { value: '20' } });
-    fireEvent.change(screen.getByTestId('calc-select-op'), { target: { value: '+' } });
-    fireEvent.change(screen.getByTestId('calc-input-b'), { target: { value: '5' } });
-
-    // 2. Click Calculate
-    fireEvent.click(screen.getByTestId('btn-calc-submit'));
-
-    // 3. Assert Backend API was called (not processed in browser)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/calc'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ a: 20, b: 5, operator: '+' })
-        })
-      );
-    });
-
-    // 4. Assert calculation result rendered in DOM
-    expect(await screen.findByTestId('calc-result')).toHaveTextContent('25');
-
-    // 5. Assert Simple Collector received the audit ping
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/collect'),
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('"source":"frontend"')
-      })
-    );
-  });
-});
+# 6. Type-check TypeScript files
+npm run type-check
 ```
 
 #### CI / Automation Integration:
-- In CI workflows, `npm run test` executes in headless mode.
+- In CI workflows, `npm run test` executes in headless mode across all test suites in [`tests/`](../../apps/frontend-producer/tests).
 - Tests assert a minimum 80% branch and line coverage before deployment.
