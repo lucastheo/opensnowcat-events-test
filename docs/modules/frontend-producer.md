@@ -54,39 +54,7 @@ sequenceDiagram
 - **Routing:** **React Router v7 / v6** (Client-side routing across 5 pages)
 - **Tracker SDK:** `@snowplow/browser-tracker`
 - **Port:** `3000`
-
-### Dependencies (`package.json` snippet)
-```json
-{
-  "name": "opensnowcat-frontend",
-  "version": "1.0.0",
-  "type": "module",
-  "engines": {
-    "node": ">=26.0.0"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
-  },
-  "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0",
-    "@snowplow/browser-tracker": "^3.12.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.0",
-    "vite": "^6.0.0",
-    "vitest": "^2.1.0",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.0",
-    "jsdom": "^25.0.0"
-  }
-}
-```
+- **Dependencies Configuration:** Complete list of runtime and developer dependencies is defined in [`package.json`](../../apps/frontend-producer/package.json).
 
 ### 3.1 Directory Layout
 
@@ -144,37 +112,9 @@ apps/frontend-producer/
         └── error-resilience.integration.test.tsx
 ```
 
-### 3.2 Dockerfile Specification (`apps/frontend-producer/Dockerfile`)
+### 3.2 Containerization
 
-```dockerfile
-FROM node:26-alpine AS builder
-WORKDIR /app
-COPY package*.json tsconfig.json vite.config.ts index.html ./
-RUN npm ci
-COPY src ./src
-ARG VITE_BACKEND_URL=http://localhost:4000
-ARG VITE_SIMPLE_COLLECTOR_URL=http://localhost:5000
-ARG VITE_OPENSNOWCAT_URL=http://localhost:8080
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
-ENV VITE_SIMPLE_COLLECTOR_URL=$VITE_SIMPLE_COLLECTOR_URL
-ENV VITE_OPENSNOWCAT_URL=$VITE_OPENSNOWCAT_URL
-RUN npm run build
-
-FROM nginx:alpine AS runner
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-RUN echo 'server { \
-    listen 3000; \
-    location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
-
-EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"]
-```
+The multi-stage container build (Node.js 26 builder + Nginx Alpine runner on port 3000) is specified in [`Dockerfile`](../../apps/frontend-producer/Dockerfile).
 
 ---
 
