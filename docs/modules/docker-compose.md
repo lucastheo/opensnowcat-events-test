@@ -79,6 +79,7 @@ services:
       - "4000:4000"
     environment:
       - PORT=4000
+      - CORS_ORIGIN=*
       - OPENSNOWCAT_COLLECTOR_URL=http://opensnowcat:8080
       - SIMPLE_COLLECTOR_URL=http://simple-collector:5000
     depends_on:
