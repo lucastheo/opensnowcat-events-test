@@ -10,8 +10,6 @@ export interface StructuredEventParams {
   label?: string;
   property?: string;
   value?: number;
-  eventId?: string;
-  timestamp?: string;
 }
 
 export class OpenSnowcatClient {

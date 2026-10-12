@@ -97,9 +97,7 @@ describe('OpenSnowcatClient', () => {
       action: 'test_action',
       label: 'test_label',
       property: 'test_prop',
-      value: 10,
-      eventId: 'evt-100',
-      timestamp: '2026-10-11T12:00:00.000Z'
+      value: 10
     };
 
     it('calls tracker.track(buildStructEvent(...)) and tracker.flush()', async () => {
