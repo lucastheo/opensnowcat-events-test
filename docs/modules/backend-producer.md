@@ -253,21 +253,25 @@ The External Layer manages outbound HTTP communication with external services, i
 
 ### 5.4 Cross-Origin Resource Sharing (CORS) & Middleware (`src/middleware.ts`)
 
-The Frontend application (running on port 3000 in browser) delegates calculations, timestamps, excuses, and dice rolls to the Backend Producer (running on port 4000). To support cross-origin browser requests without being blocked by CORS policies, the Backend Producer implements CORS support at two complementary levels:
+The Frontend application (running on port 3000 in browser) delegates calculations, timestamps, excuses, and dice rolls to the Backend Producer (running on port 4000). To support cross-origin browser requests without being blocked by CORS policies, the Backend Producer implements centralized CORS handling with [`src/middleware.ts`](../../apps/backend-producer/src/middleware.ts) as the single source of truth:
 
-1. **Next.js Middleware ([`src/middleware.ts`](../../apps/backend-producer/src/middleware.ts)):**
+1. **Next.js Middleware Single Source of Truth ([`src/middleware.ts`](../../apps/backend-producer/src/middleware.ts)):**
+   - **Shared Constants:**
+     - `ALLOWED_METHODS`: `'GET, POST, OPTIONS'` (Backend only serves GET and POST endpoints)
+     - `ALLOWED_HEADERS`: `'Content-Type, Authorization, X-Requested-With'`
+     - `MAX_AGE`: `'86400'`
    - **Matcher Config:** Intercepts requests matching `['/api/:path*']`.
-   - **Path Filter:** Checks if the request URL pathname starts with `/api/`. Non-API paths pass through without modification.
+   - **Path Filter:** Checks `pathname === '/api' || pathname.startsWith('/api/')` so root `/api` and subpaths `/api/*` are handled consistently. Non-API paths pass through without modification.
    - **OPTIONS Preflight Requests:** When a browser issues an HTTP `OPTIONS` preflight call, the middleware short-circuits execution and returns `HTTP 204 No Content` with the following headers:
      - `Access-Control-Allow-Origin`: `process.env.CORS_ORIGIN || '*'`
-     - `Access-Control-Allow-Methods`: `'GET, POST, PUT, DELETE, OPTIONS'`
-     - `Access-Control-Allow-Headers`: `'Content-Type, Authorization, X-Requested-With'`
-     - `Access-Control-Max-Age`: `'86400'`
-   - **Normal Requests:** Passes requests through via `NextResponse.next()` and adds CORS headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`).
+     - `Access-Control-Allow-Methods`: `ALLOWED_METHODS` (`'GET, POST, OPTIONS'`)
+     - `Access-Control-Allow-Headers`: `ALLOWED_HEADERS` (`'Content-Type, Authorization, X-Requested-With'`)
+     - `Access-Control-Max-Age`: `MAX_AGE` (`'86400'`)
+   - **Normal Requests:** Passes requests through via `NextResponse.next()` and attaches CORS headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`) without `Access-Control-Max-Age`.
    - **Environment Configuration:** Respects the `CORS_ORIGIN` environment variable (defaulting to `*` if unspecified).
 
 2. **Next.js Server Configuration ([`next.config.ts`](../../apps/backend-producer/next.config.ts)):**
-   - Implements `async headers()` returning CORS headers for `/api/:path*`, ensuring framework-level header consistency.
+   - Retains only `output: 'standalone'` without custom `headers()`. Defining CORS headers in both `next.config.ts` and `src/middleware.ts` causes Next.js to append duplicate headers (`Access-Control-Allow-Origin: *, *`), which browsers reject under CORS specifications. Centralizing in `src/middleware.ts` prevents header duplication.
 
 ---
 

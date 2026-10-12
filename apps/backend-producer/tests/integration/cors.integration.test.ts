@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { middleware } from '@/middleware';
+import { middleware, ALLOWED_METHODS, ALLOWED_HEADERS, MAX_AGE } from '@/middleware';
 import { POST as postCalc } from '@/app/api/calc/route';
 import { GET as getExcuse } from '@/app/api/daily-excuse/route';
 import { openSnowcatClient } from '@/external/opensnowcat.client';
@@ -39,21 +39,8 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     }
   });
 
-  it('validates next.config.ts specifies CORS headers for /api/:path*', async () => {
-    expect(nextConfig.headers).toBeDefined();
-    if (nextConfig.headers) {
-      const headerConfigs = await nextConfig.headers();
-      const apiHeaderConfig = headerConfigs.find((cfg) => cfg.source === '/api/:path*');
-      expect(apiHeaderConfig).toBeDefined();
-
-      const headersMap = Object.fromEntries(
-        (apiHeaderConfig?.headers ?? []).map((h) => [h.key, h.value])
-      );
-      expect(headersMap['Access-Control-Allow-Origin']).toBe('*');
-      expect(headersMap['Access-Control-Allow-Methods']).toBe('GET, POST, PUT, DELETE, OPTIONS');
-      expect(headersMap['Access-Control-Allow-Headers']).toBe('Content-Type, Authorization, X-Requested-With');
-      expect(headersMap['Access-Control-Max-Age']).toBe('86400');
-    }
+  it('confirms next.config.ts does not define custom headers, keeping middleware as the single source of truth for CORS', () => {
+    expect(nextConfig.headers).toBeUndefined();
   });
 
   it('handles browser preflight OPTIONS requests across API endpoints without invoking business logic', async () => {
@@ -80,9 +67,9 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
 
       expect(preflightRes.status).toBe(204);
       expect(preflightRes.headers.get('Access-Control-Allow-Origin')).toBe('*');
-      expect(preflightRes.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, PUT, DELETE, OPTIONS');
-      expect(preflightRes.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type, Authorization, X-Requested-With');
-      expect(preflightRes.headers.get('Access-Control-Max-Age')).toBe('86400');
+      expect(preflightRes.headers.get('Access-Control-Allow-Methods')).toBe(ALLOWED_METHODS);
+      expect(preflightRes.headers.get('Access-Control-Allow-Headers')).toBe(ALLOWED_HEADERS);
+      expect(preflightRes.headers.get('Access-Control-Max-Age')).toBe(MAX_AGE);
     }
 
     // Preflight must never invoke external emitters
@@ -90,7 +77,7 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     expect(simpleCollectorClient.record).not.toHaveBeenCalled();
   });
 
-  it('simulates full preflight + POST flow with CORS headers and dual emission', async () => {
+  it('simulates full preflight + POST flow with single valid CORS headers and dual emission', async () => {
     const origin = 'http://localhost:3000';
     process.env.CORS_ORIGIN = origin;
 
@@ -107,7 +94,9 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     const preflightRes = middleware(preflightReq);
     expect(preflightRes.status).toBe(204);
     expect(preflightRes.headers.get('Access-Control-Allow-Origin')).toBe(origin);
-    expect(preflightRes.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+    expect(preflightRes.headers.get('Access-Control-Allow-Methods')).toBe(ALLOWED_METHODS);
+    expect(preflightRes.headers.get('Access-Control-Allow-Headers')).toBe(ALLOWED_HEADERS);
+    expect(preflightRes.headers.get('Access-Control-Max-Age')).toBe(MAX_AGE);
 
     // 2. Browser sends actual POST request through middleware
     const postReq = new NextRequest('http://localhost:4000/api/calc', {
@@ -120,8 +109,12 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     });
 
     const middlewareRes = middleware(postReq);
-    expect(middlewareRes.headers.get('Access-Control-Allow-Origin')).toBe(origin);
-    expect(middlewareRes.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, PUT, DELETE, OPTIONS');
+    const allowOrigin = middlewareRes.headers.get('Access-Control-Allow-Origin');
+    expect(allowOrigin).toBe(origin);
+    expect(allowOrigin).not.toContain(',');
+    expect(middlewareRes.headers.get('Access-Control-Allow-Methods')).toBe(ALLOWED_METHODS);
+    expect(middlewareRes.headers.get('Access-Control-Allow-Headers')).toBe(ALLOWED_HEADERS);
+    expect(middlewareRes.headers.get('Access-Control-Max-Age')).toBeNull();
 
     // 3. Controller processes request, verifies real business logic and dual emission
     const response = await postCalc(postReq);
@@ -135,7 +128,7 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     expect(simpleCollectorClient.record).toHaveBeenCalledTimes(1);
   });
 
-  it('simulates preflight + GET request with custom CORS origin', async () => {
+  it('simulates preflight + GET request with custom CORS origin and single valid CORS headers', async () => {
     process.env.CORS_ORIGIN = 'http://frontend.example.com';
 
     const getReq = new NextRequest('http://localhost:4000/api/daily-excuse', {
@@ -146,7 +139,12 @@ describe('Integration Test: CORS Support & Preflight Flow', () => {
     });
 
     const middlewareRes = middleware(getReq);
-    expect(middlewareRes.headers.get('Access-Control-Allow-Origin')).toBe('http://frontend.example.com');
+    const allowOrigin = middlewareRes.headers.get('Access-Control-Allow-Origin');
+    expect(allowOrigin).toBe('http://frontend.example.com');
+    expect(allowOrigin).not.toContain(',');
+    expect(middlewareRes.headers.get('Access-Control-Allow-Methods')).toBe(ALLOWED_METHODS);
+    expect(middlewareRes.headers.get('Access-Control-Allow-Headers')).toBe(ALLOWED_HEADERS);
+    expect(middlewareRes.headers.get('Access-Control-Max-Age')).toBeNull();
 
     const response = await getExcuse();
     expect(response.status).toBe(200);
