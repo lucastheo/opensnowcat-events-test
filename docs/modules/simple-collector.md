@@ -313,6 +313,22 @@ CMD ["node", "dist/index.js"]
 1. **Unit Tests (1:1):** Every source file in `src/` has a matching unit test under [`tests/unit/`](../../apps/simple-collector/tests/unit/).
 2. **Integration Tests:** [`tests/integration/collector.api.test.ts`](../../apps/simple-collector/tests/integration/collector.api.test.ts) runs full HTTP integration tests via Fastify `app.inject()` verifying sequential concurrency, disk state, and API status codes.
 
+### 8.1 Development, Linting & Test Execution Commands
+
+```bash
+# 1. Run type check & static analysis (tsc --noEmit)
+npm run type-check
+
+# 2. Run all unit and integration tests
+npm test
+
+# 3. Run tests in watch mode
+npm run test:watch
+
+# 4. Compile TypeScript project to dist/
+npm run build
+```
+
 ---
 
 ## 9. Summary of Key Guarantees
