@@ -6,7 +6,7 @@
     "opensnowcat-bot": "./dist/index.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=26.0.0"
   },
   "scripts": {
     "start": "node --no-warnings dist/index.js",

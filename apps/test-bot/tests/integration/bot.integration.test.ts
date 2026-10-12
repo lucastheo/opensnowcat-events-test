@@ -100,10 +100,14 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
 <body>
   <nav>
     <a id="link-nav-home" href="/">Home</a>
-    <a id="link-nav-calc" href="/calc">Calc</a>
-    <a id="link-nav-timestamp" href="/timestamp">Timestamp</a>
-    <a id="link-nav-excuse" href="/excuse">Excuse</a>
-    <a id="link-nav-dice" href="/dice">Dice</a>
+    <a id="header-nav-calc" href="/calc">Calc</a>
+    <a id="header-nav-timestamp" href="/timestamp">Timestamp</a>
+    <a id="header-nav-excuse" href="/excuse">Excuse</a>
+    <a id="header-nav-dice" href="/dice">Dice</a>
+    <a id="link-nav-calc" href="/calc" style="display:none;">Calc</a>
+    <a id="link-nav-timestamp" href="/timestamp" style="display:none;">Timestamp</a>
+    <a id="link-nav-excuse" href="/excuse" style="display:none;">Excuse</a>
+    <a id="link-nav-dice" href="/dice" style="display:none;">Dice</a>
   </nav>
 
   <div id="view-home" class="view">

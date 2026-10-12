@@ -70,11 +70,16 @@ export class Logger {
 
   logProgress = (completed: number, total: number, stats?: Record<string, unknown>): void => {
     if (this.shouldLog('info')) {
-      const percentage = total > 0 ? ((completed / total) * 100).toFixed(1) : '0.0';
-      const statsStr = stats && Object.keys(stats).length > 0
-        ? ` | ${Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join(', ')}`
-        : '';
-      console.log(`[PROGRESS] ${completed}/${total} (${percentage}%)${statsStr}`);
+      const percentageNum = total > 0 ? Math.min(100, Math.max(0, (completed / total) * 100)) : 0;
+      const barLength = 20;
+      const filledLength = Math.round((barLength * percentageNum) / 100);
+      const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
+      const percentage = percentageNum.toFixed(1);
+      const statsStr =
+        stats && Object.keys(stats).length > 0
+          ? ` | ${Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join(', ')}`
+          : '';
+      console.log(`[PROGRESS] [${bar}] ${percentage}% (${completed}/${total})${statsStr}`);
     }
   };
 }

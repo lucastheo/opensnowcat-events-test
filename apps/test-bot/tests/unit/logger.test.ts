@@ -72,16 +72,16 @@ describe('Logger', () => {
     const l = new Logger({ level: 'info' });
 
     l.logProgress(5, 10);
-    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] 5/10 (50.0%)');
+    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] [██████████░░░░░░░░░░] 50.0% (5/10)');
 
     l.logProgress(10, 10, { rps: 50, failures: 0 });
-    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] 10/10 (100.0%) | rps: 50, failures: 0');
+    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] [████████████████████] 100.0% (10/10) | rps: 50, failures: 0');
   });
 
   it('should handle zero total gracefully in progress log', () => {
     const l = new Logger({ level: 'info' });
     l.logProgress(0, 0);
-    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] 0/0 (0.0%)');
+    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] [░░░░░░░░░░░░░░░░░░░░] 0.0% (0/0)');
   });
 
   it('should update level dynamically via setLevel', () => {
@@ -112,6 +112,6 @@ describe('Logger', () => {
     expect(debugSpy).not.toHaveBeenCalled();
 
     logProgress(2, 4);
-    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] 2/4 (50.0%)');
+    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] [██████████░░░░░░░░░░] 50.0% (2/4)');
   });
 });

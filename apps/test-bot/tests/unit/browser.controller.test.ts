@@ -128,7 +128,7 @@ describe('BrowserController', () => {
     expect(mockPage.goto).toHaveBeenCalledWith('http://frontend:3000/', { timeout: 10000 });
 
     // Verify Calculator interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-calc');
+    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-calc, #link-nav-calc');
     expect(mockPage.fill).toHaveBeenCalledWith('#calc-input-a', '12');
     expect(mockPage.fill).toHaveBeenCalledWith('#calc-input-b', '4');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-calc-submit');
@@ -138,7 +138,7 @@ describe('BrowserController', () => {
     });
 
     // Verify Timestamp interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-timestamp');
+    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-timestamp, #link-nav-timestamp');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-timestamp-fetch');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#timestamp-result', {
       state: 'visible',
@@ -146,7 +146,7 @@ describe('BrowserController', () => {
     });
 
     // Verify Excuse interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-excuse');
+    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-excuse, #link-nav-excuse');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-generate-excuse');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#excuse-result', {
       state: 'visible',
@@ -154,7 +154,7 @@ describe('BrowserController', () => {
     });
 
     // Verify Dice interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-dice');
+    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-dice, #link-nav-dice');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-roll-dice');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#dice-result', {
       state: 'visible',

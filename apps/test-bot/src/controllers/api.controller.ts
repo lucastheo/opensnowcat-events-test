@@ -12,6 +12,9 @@ export interface EndpointResult<T = unknown> {
   error?: string;
 }
 
+export type CalcOperator = '+' | '-' | '*' | '/';
+export type DiceSides = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
+
 export interface CalcResponse {
   result: number;
 }
@@ -84,11 +87,11 @@ export class ApiController {
         }
       }
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         const errorMsg =
           typeof responseBody === 'object' && responseBody !== null && 'error' in responseBody
             ? String((responseBody as { error: unknown }).error)
-            : `HTTP ${response.status} ${response.statusText}`;
+            : `Expected HTTP 200, received HTTP ${response.status} ${response.statusText}`;
 
         return {
           success: false,
@@ -124,40 +127,94 @@ export class ApiController {
   async executeCalc(
     a: number = 10,
     b: number = 5,
-    operator: string = '+'
+    operator: CalcOperator = '+'
   ): Promise<EndpointResult<CalcResponse>> {
-    return this.request<CalcResponse>('/api/calc', {
+    const res = await this.request<CalcResponse>('/api/calc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ a, b, operator }),
     });
+
+    if (res.success && res.data) {
+      if (typeof res.data.result !== 'number' || isNaN(res.data.result)) {
+        return {
+          ...res,
+          success: false,
+          error: 'Invalid payload signature: result must be a valid number',
+        };
+      }
+    }
+    return res;
   }
 
   async executeTimestamp(
-    timezone: string = 'UTC'
+    timezone?: string
   ): Promise<EndpointResult<TimestampResponse>> {
-    return this.request<TimestampResponse>('/api/timestamp', {
+    const resolvedTz =
+      timezone ??
+      (typeof Intl !== 'undefined'
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : 'UTC') ??
+      'UTC';
+
+    const res = await this.request<TimestampResponse>('/api/timestamp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timezone }),
+      body: JSON.stringify({ timezone: resolvedTz }),
     });
+
+    if (res.success && res.data) {
+      if (
+        typeof res.data.timestamp_iso !== 'string' ||
+        typeof res.data.timezone !== 'string'
+      ) {
+        return {
+          ...res,
+          success: false,
+          error: 'Invalid payload signature: timestamp_iso and timezone must be strings',
+        };
+      }
+    }
+    return res;
   }
 
   async executeExcuse(): Promise<EndpointResult<ExcuseResponse>> {
-    return this.request<ExcuseResponse>('/api/daily-excuse', {
+    const res = await this.request<ExcuseResponse>('/api/daily-excuse', {
       method: 'GET',
     });
+
+    if (res.success && res.data) {
+      if (typeof res.data.id !== 'number' || typeof res.data.excuse !== 'string') {
+        return {
+          ...res,
+          success: false,
+          error: 'Invalid payload signature: id must be a number and excuse a string',
+        };
+      }
+    }
+    return res;
   }
 
   async executeDice(
     count: number = 2,
-    sides: string = 'd6'
+    sides: DiceSides = 'd6'
   ): Promise<EndpointResult<DiceResponse>> {
-    return this.request<DiceResponse>('/api/dice', {
+    const res = await this.request<DiceResponse>('/api/dice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ count, sides }),
     });
+
+    if (res.success && res.data) {
+      if (!Array.isArray(res.data.rolls) || typeof res.data.total !== 'number') {
+        return {
+          ...res,
+          success: false,
+          error: 'Invalid payload signature: rolls must be an array and total a number',
+        };
+      }
+    }
+    return res;
   }
 
   async executeAll(): Promise<ExecuteAllResult> {

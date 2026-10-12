@@ -35,9 +35,15 @@ export class BrowserController {
 
   constructor(options: BrowserControllerOptions) {
     this.frontendUrl = options.frontendUrl.replace(/\/$/, '');
-    this.backendUrl = options.backendUrl ? options.backendUrl.replace(/\/$/, '') : undefined;
-    this.simpleCollectorUrl = options.simpleCollectorUrl ? options.simpleCollectorUrl.replace(/\/$/, '') : undefined;
-    this.opensnowcatUrl = options.opensnowcatUrl ? options.opensnowcatUrl.replace(/\/$/, '') : undefined;
+    this.backendUrl = options.backendUrl
+      ? options.backendUrl.replace(/\/$/, '')
+      : process.env.BACKEND_URL || 'http://backend-producer:4000';
+    this.simpleCollectorUrl = options.simpleCollectorUrl
+      ? options.simpleCollectorUrl.replace(/\/$/, '')
+      : process.env.SIMPLE_COLLECTOR_URL || 'http://simple-collector:5000';
+    this.opensnowcatUrl = options.opensnowcatUrl
+      ? options.opensnowcatUrl.replace(/\/$/, '')
+      : process.env.OPENSNOWCAT_URL || 'http://localhost:8080';
     this.headless = options.headless ?? true;
     this.timeoutMs = options.timeoutMs ?? 10000;
     this.logger = options.logger ?? defaultLogger;
@@ -118,6 +124,18 @@ export class BrowserController {
     }
   }
 
+  private async interactWithService(
+    page: Page,
+    navSelector: string,
+    path: string,
+    action: (page: Page) => Promise<void>,
+    resultSelector: string
+  ): Promise<void> {
+    await this.navigateToService(page, navSelector, path);
+    await action(page);
+    await this.waitForResult(page, resultSelector);
+  }
+
   async runCycle(context?: BrowserContext): Promise<BrowserCycleResult> {
     const startTime = performance.now();
     let page: Page | undefined;
@@ -132,29 +150,53 @@ export class BrowserController {
       await page.goto(`${this.frontendUrl}/`, { timeout: this.timeoutMs });
 
       // 1. Calculator
-      await this.navigateToService(page, '#link-nav-calc', '/calc');
-      await page.fill('#calc-input-a', '12');
-      await page.fill('#calc-input-b', '4');
-      await page.click('#btn-calc-submit');
-      await this.waitForResult(page, '#calc-result');
+      await this.interactWithService(
+        page,
+        '#header-nav-calc, #link-nav-calc',
+        '/calc',
+        async (p) => {
+          await p.fill('#calc-input-a', '12');
+          await p.fill('#calc-input-b', '4');
+          await p.click('#btn-calc-submit');
+        },
+        '#calc-result'
+      );
       pagesInteracted++;
 
       // 2. Timestamp
-      await this.navigateToService(page, '#link-nav-timestamp', '/timestamp');
-      await page.click('#btn-timestamp-fetch');
-      await this.waitForResult(page, '#timestamp-result');
+      await this.interactWithService(
+        page,
+        '#header-nav-timestamp, #link-nav-timestamp',
+        '/timestamp',
+        async (p) => {
+          await p.click('#btn-timestamp-fetch');
+        },
+        '#timestamp-result'
+      );
       pagesInteracted++;
 
       // 3. Excuse
-      await this.navigateToService(page, '#link-nav-excuse', '/excuse');
-      await page.click('#btn-generate-excuse');
-      await this.waitForResult(page, '#excuse-result');
+      await this.interactWithService(
+        page,
+        '#header-nav-excuse, #link-nav-excuse',
+        '/excuse',
+        async (p) => {
+          await p.click('#btn-generate-excuse');
+        },
+        '#excuse-result'
+      );
       pagesInteracted++;
 
       // 4. Dice
-      await this.navigateToService(page, '#link-nav-dice', '/dice');
-      await page.click('#btn-roll-dice');
-      await this.waitForResult(page, '#dice-result');
+      await this.interactWithService(
+        page,
+        '#header-nav-dice, #link-nav-dice',
+        '/dice',
+        async (p) => {
+          await p.click('#btn-roll-dice');
+        },
+        '#dice-result'
+      );
       pagesInteracted++;
 
       const durationMs = Math.round(performance.now() - startTime);
