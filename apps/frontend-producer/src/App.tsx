@@ -85,8 +85,8 @@ export const App: React.FC = () => {
               </li>
               <li>
                 <NavLink
-                  id="link-nav-calc"
-                  data-testid="link-nav-calc"
+                  id="header-nav-calc"
+                  data-testid="header-nav-calc"
                   to="/calc"
                   className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 >
@@ -95,8 +95,8 @@ export const App: React.FC = () => {
               </li>
               <li>
                 <NavLink
-                  id="link-nav-timestamp"
-                  data-testid="link-nav-timestamp"
+                  id="header-nav-timestamp"
+                  data-testid="header-nav-timestamp"
                   to="/timestamp"
                   className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 >
@@ -105,8 +105,8 @@ export const App: React.FC = () => {
               </li>
               <li>
                 <NavLink
-                  id="link-nav-excuse"
-                  data-testid="link-nav-excuse"
+                  id="header-nav-excuse"
+                  data-testid="header-nav-excuse"
                   to="/excuse"
                   className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 >
@@ -115,8 +115,8 @@ export const App: React.FC = () => {
               </li>
               <li>
                 <NavLink
-                  id="link-nav-dice"
-                  data-testid="link-nav-dice"
+                  id="header-nav-dice"
+                  data-testid="header-nav-dice"
                   to="/dice"
                   className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 >

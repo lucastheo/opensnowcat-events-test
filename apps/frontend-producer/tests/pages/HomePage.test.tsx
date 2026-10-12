@@ -23,6 +23,12 @@ describe('HomePage', () => {
     expect(screen.getByText('Daily Standup Excuse')).toBeInTheDocument();
     expect(screen.getByText('Dice Emulator')).toBeInTheDocument();
 
+    // Service Navigation Links
+    expect(screen.getByTestId('link-nav-calc')).toHaveAttribute('id', 'link-nav-calc');
+    expect(screen.getByTestId('link-nav-timestamp')).toHaveAttribute('id', 'link-nav-timestamp');
+    expect(screen.getByTestId('link-nav-excuse')).toHaveAttribute('id', 'link-nav-excuse');
+    expect(screen.getByTestId('link-nav-dice')).toHaveAttribute('id', 'link-nav-dice');
+
     // Stats
     expect(screen.getByText('Live Session Statistics')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();

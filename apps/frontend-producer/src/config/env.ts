@@ -20,9 +20,10 @@ const getEnvVar = (key: string, defaultValue: string): string => {
 
 export const VITE_BACKEND_URL: string = getEnvVar('VITE_BACKEND_URL', 'http://localhost:4000');
 export const VITE_SIMPLE_COLLECTOR_URL: string = getEnvVar('VITE_SIMPLE_COLLECTOR_URL', 'http://localhost:5000');
-export const VITE_OPENSNOWCAT_URL: string =
-  getEnvVar('VITE_OPENSNOWCAT_URL', '') ||
-  getEnvVar('VITE_OPENSNOWCAT_COLLECTOR_URL', 'http://localhost:8080');
+export const VITE_OPENSNOWCAT_COLLECTOR_URL: string =
+  getEnvVar('VITE_OPENSNOWCAT_COLLECTOR_URL', '') ||
+  getEnvVar('VITE_OPENSNOWCAT_URL', 'http://localhost:8080');
+export const VITE_OPENSNOWCAT_URL: string = VITE_OPENSNOWCAT_COLLECTOR_URL;
 
 export const ENV: FrontendConfig = {
   backendUrl: VITE_BACKEND_URL,

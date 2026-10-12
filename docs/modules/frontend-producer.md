@@ -100,6 +100,10 @@ apps/frontend-producer/
 ├── src/
 │   ├── main.tsx                     # Entrypoint & Router setup
 │   ├── App.tsx                      # App layout & navigation header
+│   ├── styles.css                   # Global responsive styling & themes
+│   ├── vite-env.d.ts                # Vite environment typings
+│   ├── config/                      # Environment variables & runtime config
+│   │   └── env.ts                   # Centralized typed configuration
 │   ├── pages/                       # 5 Application pages
 │   │   ├── HomePage.tsx             # / (Dashboard & event counter)
 │   │   ├── CalcPage.tsx             # /calc (Delegates to backend POST /api/calc)
@@ -107,18 +111,37 @@ apps/frontend-producer/
 │   │   ├── ExcusePage.tsx           # /excuse (Delegates to backend GET /api/daily-excuse)
 │   │   └── DicePage.tsx             # /dice (Delegates to backend POST /api/dice)
 │   ├── tracker/                     # OpenSnowcat tracker & Simple Collector reporter
-│   │   ├── snowcat.ts               # OpenSnowcat JS SDK initialization
-│   │   └── simple-collector.ts      # Audit HTTP ping (POST /collect)
+│   │   ├── snowcat.ts               # OpenSnowcat JS SDK initialization & lifecycle
+│   │   ├── simple-collector.ts      # Audit HTTP ping (POST /collect)
+│   │   └── event-emitter.ts         # Dual-emission orchestration & event mode state
 │   └── services/                    # API client delegating to Backend Producer
 │       └── backend-api.ts           # Fetch calls to backend (port 4000)
 └── tests/
     ├── setup.ts                     # Vitest setup & DOM polyfills
-    └── pages/                       # 1:1 Page & Component tests
-        ├── HomePage.test.tsx
-        ├── CalcPage.test.tsx
-        ├── TimestampPage.test.tsx
-        ├── ExcusePage.test.tsx
-        └── DicePage.test.tsx
+    ├── main.test.tsx                # 1:1 Unit test for main.tsx entrypoint
+    ├── App.test.tsx                 # 1:1 Unit test for App layout & header
+    ├── config/                      # Configuration unit tests
+    │   └── env.test.ts
+    ├── pages/                       # 1:1 Page & Component tests
+    │   ├── HomePage.test.tsx
+    │   ├── CalcPage.test.tsx
+    │   ├── TimestampPage.test.tsx
+    │   ├── ExcusePage.test.tsx
+    │   └── DicePage.test.tsx
+    ├── services/                    # Backend API client unit tests
+    │   └── backend-api.test.ts
+    ├── tracker/                     # Tracking subsystem unit tests
+    │   ├── snowcat.test.ts
+    │   ├── simple-collector.test.ts
+    │   └── event-emitter.test.ts
+    └── integration/                 # End-to-end component integration tests
+        ├── test-router.tsx
+        ├── calc.integration.test.tsx
+        ├── timestamp.integration.test.tsx
+        ├── excuse.integration.test.tsx
+        ├── dice.integration.test.tsx
+        ├── mode-toggle.integration.test.tsx
+        └── error-resilience.integration.test.tsx
 ```
 
 ### 3.2 Dockerfile Specification (`apps/frontend-producer/Dockerfile`)
@@ -231,7 +254,7 @@ The application consists of **5 pages**:
   - Dice sides select (`#dice-select-sides`): `d4`, `d6`, `d8`, `d10`, `d12`, `d20`, `d100` (default: `d6`).
   - Roll Button (`#btn-roll-dice`): "Roll Dice"
 - **Backend API Endpoint:** `POST /api/dice`
-  - Request: `{ "count": 2, "sides": 6 }`
+  - Request: `{ "count": 2, "sides": "d6" }`
   - Response: `{ "rolls": [4, 6], "total": 10 }`
 - **Output Container:** `#dice-result` displays individual rolls and the total sum.
 
@@ -427,7 +450,7 @@ Summary of interactive components and element identifiers across the 5 pages:
 |---|---|---|
 | `PORT` | `3000` | Port for the React frontend development/production server. |
 | `VITE_BACKEND_URL` | `http://localhost:4000` | URL of the Backend Producer API service. |
-| `VITE_OPENSNOWCAT_COLLECTOR_URL`| `http://localhost:8080` | URL of the OpenSnowcat Stream Collector endpoint. |
+| `VITE_OPENSNOWCAT_COLLECTOR_URL` / `VITE_OPENSNOWCAT_URL` | `http://localhost:8080` | URL of the OpenSnowcat Stream Collector endpoint (supported interchangeably). |
 | `VITE_SIMPLE_COLLECTOR_URL` | `http://localhost:5000` | URL of the Simple Collector service. |
 
 > [!NOTE]

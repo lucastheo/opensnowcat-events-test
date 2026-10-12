@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { calculate, type CalcOperator } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
 
+export const CALC_OP_LABELS: Record<CalcOperator, string> = {
+  '+': 'addition',
+  '-': 'subtraction',
+  '*': 'multiplication',
+  '/': 'division'
+};
+
 export const CalcPage: React.FC = () => {
   const [a, setA] = useState<string>('12');
   const [operator, setOperator] = useState<CalcOperator>('+');
@@ -34,7 +41,7 @@ export const CalcPage: React.FC = () => {
         structEvent: {
           category: 'service',
           action: 'calculate',
-          label: operator,
+          label: CALC_OP_LABELS[operator],
           property: `${numA}${operator}${numB}`,
           value: res.result
         },

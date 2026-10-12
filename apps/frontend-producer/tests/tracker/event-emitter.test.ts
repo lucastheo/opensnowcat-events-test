@@ -1,58 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as snowcatTracker from '@/tracker/snowcat';
 import * as simpleCollector from '@/tracker/simple-collector';
-import {
-  eventEmitter,
-  emitPageView,
-  emitStructEvent,
-  emitSelfDescribingEvent,
-  emitServiceAction,
-  getEventMode,
-  setEventMode,
-  subscribeEventMode,
-  getSessionEventCount,
-  resetSessionEventCount,
-  subscribeEventCount
-} from '@/tracker/event-emitter';
+import { eventEmitter } from '@/tracker/event-emitter';
 
 describe('Event Emitter Dual-Emission Dispatcher', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    resetSessionEventCount();
-    setEventMode('both');
+    eventEmitter.resetSessionEventCount();
+    eventEmitter.setEventMode('both');
   });
 
   it('manages event mode toggle and notifies listeners', () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeEventMode(listener);
+    const unsubscribe = eventEmitter.subscribeEventMode(listener);
 
-    expect(getEventMode()).toBe('both');
+    expect(eventEmitter.getEventMode()).toBe('both');
 
-    setEventMode('no_schema_only');
-    expect(getEventMode()).toBe('no_schema_only');
+    eventEmitter.setEventMode('no_schema_only');
+    expect(eventEmitter.getEventMode()).toBe('no_schema_only');
     expect(listener).toHaveBeenCalledWith('no_schema_only');
 
-    setEventMode('self_describing_only');
-    expect(getEventMode()).toBe('self_describing_only');
+    eventEmitter.setEventMode('self_describing_only');
+    expect(eventEmitter.getEventMode()).toBe('self_describing_only');
     expect(listener).toHaveBeenCalledWith('self_describing_only');
 
     unsubscribe();
-    setEventMode('both');
+    eventEmitter.setEventMode('both');
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('manages session event count and notifies listeners', () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeEventCount(listener);
+    const unsubscribe = eventEmitter.subscribeEventCount(listener);
 
-    expect(getSessionEventCount()).toBe(0);
+    expect(eventEmitter.getEventCount()).toBe(0);
 
     eventEmitter.incrementSessionEventCount(1);
-    expect(getSessionEventCount()).toBe(1);
+    expect(eventEmitter.getEventCount()).toBe(1);
     expect(listener).toHaveBeenCalledWith(1);
 
-    resetSessionEventCount();
-    expect(getSessionEventCount()).toBe(0);
+    eventEmitter.resetSessionEventCount();
+    expect(eventEmitter.getEventCount()).toBe(0);
     expect(listener).toHaveBeenCalledWith(0);
 
     unsubscribe();
@@ -68,7 +56,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       timestamp: '2026-10-12T10:00:00.000Z'
     });
 
-    const result = await emitPageView({ title: 'Calculator' });
+    const result = await eventEmitter.emitPageView({ title: 'Calculator' });
 
     expect(snowcatSpy).toHaveBeenCalledWith({ title: 'Calculator' });
     expect(reportSpy).toHaveBeenCalledWith(
@@ -77,12 +65,12 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       'frontend',
       'page_view'
     );
-    expect(getSessionEventCount()).toBe(1);
+    expect(eventEmitter.getEventCount()).toBe(1);
     expect(result.eventId).toBe('pageview-id-1');
   });
 
   it('emits service action in mode "both" (fires both Struct and SD events)', async () => {
-    setEventMode('both');
+    eventEmitter.setEventMode('both');
 
     const reportSpy = vi.spyOn(simpleCollector, 'reportToSimpleCollector').mockResolvedValue({
       status: 'recorded',
@@ -97,7 +85,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       timestamp: '2026-10-12T10:01:00.000Z'
     });
 
-    const result = await emitServiceAction({
+    const result = await eventEmitter.emitServiceAction({
       structEvent: {
         category: 'service',
         action: 'calculate',
@@ -131,12 +119,12 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       'self_describing'
     );
 
-    expect(getSessionEventCount()).toBe(2);
+    expect(eventEmitter.getEventCount()).toBe(2);
     expect(result.eventIds).toEqual(['struct-uuid-1', 'sd-uuid-2']);
   });
 
   it('emits service action in mode "no_schema_only" (fires only Struct event)', async () => {
-    setEventMode('no_schema_only');
+    eventEmitter.setEventMode('no_schema_only');
 
     const reportSpy = vi.spyOn(simpleCollector, 'reportToSimpleCollector').mockResolvedValue(null);
     const structSpy = vi.spyOn(snowcatTracker, 'trackSnowcatStructEvent').mockReturnValue({
@@ -145,7 +133,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
     });
     const sdSpy = vi.spyOn(snowcatTracker, 'trackSnowcatSelfDescribingEvent');
 
-    const result = await emitServiceAction({
+    const result = await eventEmitter.emitServiceAction({
       structEvent: { category: 'service', action: 'dice' },
       selfDescribingEvent: {
         event: { schema: 'test', data: {} }
@@ -161,12 +149,12 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       'frontend',
       'struct_event'
     );
-    expect(getSessionEventCount()).toBe(1);
+    expect(eventEmitter.getEventCount()).toBe(1);
     expect(result.eventIds).toEqual(['struct-uuid-3']);
   });
 
   it('emits service action in mode "self_describing_only" (fires only SD event)', async () => {
-    setEventMode('self_describing_only');
+    eventEmitter.setEventMode('self_describing_only');
 
     const reportSpy = vi.spyOn(simpleCollector, 'reportToSimpleCollector').mockResolvedValue(null);
     const structSpy = vi.spyOn(snowcatTracker, 'trackSnowcatStructEvent');
@@ -175,7 +163,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       timestamp: '2026-10-12T10:03:00.000Z'
     });
 
-    const result = await emitServiceAction({
+    const result = await eventEmitter.emitServiceAction({
       structEvent: { category: 'service', action: 'dice' },
       selfDescribingEvent: {
         event: { schema: 'test', data: {} }
@@ -191,7 +179,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       'frontend',
       'self_describing'
     );
-    expect(getSessionEventCount()).toBe(1);
+    expect(eventEmitter.getEventCount()).toBe(1);
     expect(result.eventIds).toEqual(['sd-uuid-4']);
   });
 });

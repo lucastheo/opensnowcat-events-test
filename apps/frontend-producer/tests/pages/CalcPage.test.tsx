@@ -53,7 +53,7 @@ describe('CalcPage', () => {
       structEvent: {
         category: 'service',
         action: 'calculate',
-        label: '+',
+        label: 'addition',
         property: '20+5',
         value: 25
       },

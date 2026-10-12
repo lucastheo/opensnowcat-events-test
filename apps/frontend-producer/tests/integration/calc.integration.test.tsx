@@ -139,7 +139,7 @@ describe('Calculator Service - End-to-End Integration', () => {
       expect.objectContaining({
         category: 'service',
         action: 'calculate',
-        label: '/',
+        label: 'division',
         property: '24/6',
         value: 4
       })

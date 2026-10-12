@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { rollDice, type DiceSides, type DiceResponse } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
 
+export const DICE_SIDES_MAP: Record<DiceSides, number> = {
+  d4: 4,
+  d6: 6,
+  d8: 8,
+  d10: 10,
+  d12: 12,
+  d20: 20,
+  d100: 100
+};
+
 export const DicePage: React.FC = () => {
   const [count, setCount] = useState<number>(2);
   const [sides, setSides] = useState<DiceSides>('d6');
@@ -26,7 +36,7 @@ export const DicePage: React.FC = () => {
       const res = await rollDice(countNum, sides);
       setResult(res);
 
-      const sidesNumber = parseInt(sides.replace(/^d/, ''), 10);
+      const sidesNumber = DICE_SIDES_MAP[sides];
 
       // 2. Emit dual-emission tracking events
       await eventEmitter.emitServiceAction({

@@ -50,7 +50,8 @@ describe('OpenSnowcat Tracker SDK Integration', () => {
     expect(result.timestamp).toBeDefined();
     expect(snowplowSdk.trackPageView).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Test Page'
+        title: 'Test Page',
+        timestamp: { type: 'ttm', value: expect.any(Number) }
       })
     );
   });
@@ -71,7 +72,8 @@ describe('OpenSnowcat Tracker SDK Integration', () => {
         action: 'calculate',
         label: 'addition',
         property: '2+2',
-        value: 4
+        value: 4,
+        timestamp: { type: 'ttm', value: expect.any(Number) }
       })
     );
   });
@@ -90,7 +92,8 @@ describe('OpenSnowcat Tracker SDK Integration', () => {
         event: {
           schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
           data: { a: 2, b: 2, operator: '+', result: 4 }
-        }
+        },
+        timestamp: { type: 'ttm', value: expect.any(Number) }
       })
     );
   });

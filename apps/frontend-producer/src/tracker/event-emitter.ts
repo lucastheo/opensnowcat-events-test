@@ -56,10 +56,6 @@ class EventEmitterManager {
     };
   }
 
-  public getSessionEventCount(): number {
-    return this.sessionEventCount;
-  }
-
   public getEventCount(): number {
     return this.sessionEventCount;
   }
@@ -171,21 +167,3 @@ class EventEmitterManager {
 }
 
 export const eventEmitter = new EventEmitterManager();
-
-// Convenient function exports
-export const emitPageView = (params?: SnowcatPageViewParams) => eventEmitter.emitPageView(params);
-export const emitStructEvent = (params: SnowcatStructEventParams) => eventEmitter.emitStructEvent(params);
-export const emitSelfDescribingEvent = (params: SnowcatSelfDescribingEventParams) =>
-  eventEmitter.emitSelfDescribingEvent(params);
-export const emitServiceAction = (params: ServiceActionParams) =>
-  eventEmitter.emitServiceAction(params);
-export const getEventMode = () => eventEmitter.getEventMode();
-export const setEventMode = (mode: EventMode) => eventEmitter.setEventMode(mode);
-export const subscribeEventMode = (listener: ModeListener) => eventEmitter.subscribeEventMode(listener);
-export const getSessionEventCount = () => eventEmitter.getSessionEventCount();
-export const getEventCount = () => eventEmitter.getEventCount();
-export const incrementSessionEventCount = (amount?: number) =>
-  eventEmitter.incrementSessionEventCount(amount);
-export const resetSessionEventCount = () => eventEmitter.resetSessionEventCount();
-export const subscribeEventCount = (listener: CountListener) =>
-  eventEmitter.subscribeEventCount(listener);

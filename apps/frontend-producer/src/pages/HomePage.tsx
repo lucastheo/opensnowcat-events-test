@@ -22,6 +22,7 @@ export const HomePage: React.FC = () => {
     {
       title: 'Simple Calculator',
       path: '/calc',
+      id: 'link-nav-calc',
       description: 'Perform arithmetic operations (+, -, *, /) processed strictly on the backend API.',
       endpoint: 'POST /api/calc',
       actionName: 'Open Calculator'
@@ -29,6 +30,7 @@ export const HomePage: React.FC = () => {
     {
       title: 'Location Timestamp',
       path: '/timestamp',
+      id: 'link-nav-timestamp',
       description: 'Fetch the current time formatted for your detected or chosen timezone via the backend.',
       endpoint: 'POST /api/timestamp',
       actionName: 'Open Timestamp'
@@ -36,6 +38,7 @@ export const HomePage: React.FC = () => {
     {
       title: 'Daily Standup Excuse',
       path: '/excuse',
+      id: 'link-nav-excuse',
       description: 'Generate humorous, developer-centric excuses for skipping daily standups from the backend.',
       endpoint: 'GET /api/daily-excuse',
       actionName: 'Open Excuse Generator'
@@ -43,6 +46,7 @@ export const HomePage: React.FC = () => {
     {
       title: 'Dice Emulator',
       path: '/dice',
+      id: 'link-nav-dice',
       description: 'Roll dice of various polyhedral sides (d4 to d100) computed by the backend service.',
       endpoint: 'POST /api/dice',
       actionName: 'Open Dice Roller'
@@ -66,7 +70,12 @@ export const HomePage: React.FC = () => {
             <div style={{ marginBottom: '1rem', fontSize: '0.8rem', color: '#64748b' }}>
               <strong>Endpoint:</strong> <code>{svc.endpoint}</code>
             </div>
-            <Link to={svc.path} className="card-btn">
+            <Link
+              to={svc.path}
+              id={svc.id}
+              data-testid={svc.id}
+              className="card-btn"
+            >
               {svc.actionName} &rarr;
             </Link>
           </div>

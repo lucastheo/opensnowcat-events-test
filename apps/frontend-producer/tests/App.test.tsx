@@ -34,10 +34,10 @@ describe('App Layout & Header', () => {
     );
 
     expect(screen.getByTestId('link-nav-home')).toHaveAttribute('id', 'link-nav-home');
-    expect(screen.getByTestId('link-nav-calc')).toHaveAttribute('id', 'link-nav-calc');
-    expect(screen.getByTestId('link-nav-timestamp')).toHaveAttribute('id', 'link-nav-timestamp');
-    expect(screen.getByTestId('link-nav-excuse')).toHaveAttribute('id', 'link-nav-excuse');
-    expect(screen.getByTestId('link-nav-dice')).toHaveAttribute('id', 'link-nav-dice');
+    expect(screen.getByTestId('header-nav-calc')).toHaveAttribute('id', 'header-nav-calc');
+    expect(screen.getByTestId('header-nav-timestamp')).toHaveAttribute('id', 'header-nav-timestamp');
+    expect(screen.getByTestId('header-nav-excuse')).toHaveAttribute('id', 'header-nav-excuse');
+    expect(screen.getByTestId('header-nav-dice')).toHaveAttribute('id', 'header-nav-dice');
     await waitFor(() => {
       expect(screen.getByTestId('frontend-events-counter')).toHaveTextContent('1');
     });
