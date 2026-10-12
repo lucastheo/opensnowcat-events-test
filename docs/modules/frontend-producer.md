@@ -273,10 +273,10 @@ The frontend is specifically designed to emit **both No-Schema (standard) and Se
 │   │    (Standard / Out-of-the-box) │   │     (Iglu Schema-Based)   │   │
 │   ├────────────────────────────────┤   ├───────────────────────────┤   │
 │   │ • trackPageView(...)           │   │ • trackSelfDescribingEvent│   │
-│   │   - URL, title, referrer       │   │   - calc_event/1-0-0      │   │
-│   │ • trackStructEvent(...)        │   │   - timestamp_event/1-0-0 │   │
-│   │   - category, action, label,   │   │   - excuse_event/1-0-0    │   │
-│   │     property, value            │   │   - dice_event/1-0-0      │   │
+│   │   - URL, title, referrer       │   │   - anything-a/1-0-0      │   │
+│   │ • trackStructEvent(...)        │   │     (wildcard schema)     │   │
+│   │   - category, action, label,   │   │   - Calc, Timestamp,      │   │
+│   │     property, value            │   │     Excuse, Dice payloads │   │
 │   └────────────────────────────────┘   └───────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -327,12 +327,14 @@ await reportToSimpleCollector(eventId, timestamp, 'frontend', 'struct_event');
 
 ### 5.2 Self-Describing Events (Iglu Schema-Based)
 
-Emitted via `trackSelfDescribingEvent` alongside or in conjunction with service actions. Each event conforms to a formal Iglu JSON Schema envelope:
+Emitted via `trackSelfDescribingEvent` alongside or in conjunction with service actions. To remain schema-agnostic and avoid requiring custom schema servers, all self-describing events use the official Iglu Central wildcard schema:
+
+- **Schema URI:** `iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0`
 
 ```javascript
 snowplow('trackSelfDescribingEvent', {
   event: {
-    schema: 'iglu:com.opensnowcat.test/<event_name>/jsonschema/1-0-0',
+    schema: 'iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0',
     data: { /* typed payload */ }
   },
   eventId: eventId,
@@ -340,10 +342,9 @@ snowplow('trackSelfDescribingEvent', {
 });
 ```
 
-#### Service Schemas:
+#### Service Payloads (Emitted under `anything-a`):
 
-#### 1. Calculator Event (`calc_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0`
+#### 1. Calculator Payload
 - **Data Payload:**
   ```json
   {
@@ -354,8 +355,7 @@ snowplow('trackSelfDescribingEvent', {
   }
   ```
 
-#### 2. Timestamp Event (`timestamp_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/timestamp_event/jsonschema/1-0-0`
+#### 2. Timestamp Payload
 - **Data Payload:**
   ```json
   {
@@ -364,8 +364,7 @@ snowplow('trackSelfDescribingEvent', {
   }
   ```
 
-#### 3. Daily Excuse Event (`excuse_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/excuse_event/jsonschema/1-0-0`
+#### 3. Daily Excuse Payload
 - **Data Payload:**
   ```json
   {
@@ -374,8 +373,7 @@ snowplow('trackSelfDescribingEvent', {
   }
   ```
 
-#### 4. Dice Roll Event (`dice_event`)
-- **Schema URI:** `iglu:com.opensnowcat.test/dice_event/jsonschema/1-0-0`
+#### 4. Dice Roll Payload
 - **Data Payload:**
   ```json
   {

@@ -5,7 +5,8 @@ import {
   trackSnowcatPageView,
   trackSnowcatStructEvent,
   trackSnowcatSelfDescribingEvent,
-  resetSnowcatTracker
+  resetSnowcatTracker,
+  ANYTHING_A_SCHEMA
 } from '@/tracker/snowcat';
 
 vi.mock('@snowplow/browser-tracker', () => ({
@@ -81,7 +82,7 @@ describe('OpenSnowcat Tracker SDK Integration', () => {
   it('tracks self-describing event conforming to schema envelope', () => {
     const result = trackSnowcatSelfDescribingEvent({
       event: {
-        schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
+        schema: ANYTHING_A_SCHEMA,
         data: { a: 2, b: 2, operator: '+', result: 4 }
       }
     });
@@ -90,7 +91,7 @@ describe('OpenSnowcat Tracker SDK Integration', () => {
     expect(snowplowSdk.trackSelfDescribingEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         event: {
-          schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: { a: 2, b: 2, operator: '+', result: 4 }
         },
         timestamp: { type: 'ttm', value: expect.any(Number) }

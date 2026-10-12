@@ -102,7 +102,7 @@ Detailed architectural and implementation specifications for each module are doc
 - **Constraint:** All 4 services cannot be processed in the browser; they delegate processing to the Backend Producer API.
 - **Event Types Emitted:**
   - **No-Schema Events:** `trackPageView` (route transitions) and `trackStructEvent` (service actions).
-  - **Self-Describing Events:** `trackSelfDescribingEvent` with formal Iglu JSON schemas for each service (`calc_event`, `timestamp_event`, `excuse_event`, `dice_event`).
+  - **Self-Describing Events:** `trackSelfDescribingEvent` with official Iglu Central wildcard schema `anything-a` (`iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0`) for schema-agnostic service payload emission.
 - On each event generation:
   1. Emits the event to OpenSnowcat Collector.
   2. Sends an HTTP audit request to Simple Collector (`POST /collect` with `source: "frontend"`).

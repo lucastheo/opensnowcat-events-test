@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { rollDice, type DiceSides, type DiceResponse } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 export const DICE_SIDES_MAP: Record<DiceSides, number> = {
   d4: 4,
@@ -49,7 +50,7 @@ export const DicePage: React.FC = () => {
         },
         selfDescribingEvent: {
           event: {
-            schema: 'iglu:com.opensnowcat.test/dice_event/jsonschema/1-0-0',
+            schema: ANYTHING_A_SCHEMA,
             data: {
               count: countNum,
               sides: sidesNumber,

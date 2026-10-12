@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import ExcusePage from '@/pages/ExcusePage';
 import * as backendApiModule from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 describe('ExcusePage', () => {
   beforeEach(() => {
@@ -57,7 +58,7 @@ describe('ExcusePage', () => {
       },
       selfDescribingEvent: {
         event: {
-          schema: 'iglu:com.opensnowcat.test/excuse_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: {
             excuse_id: 42,
             excuse_text: 'My Docker container is eating 100% of my CPU.'

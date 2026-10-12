@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getDailyExcuse } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 export const ExcusePage: React.FC = () => {
   const [excuse, setExcuse] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export const ExcusePage: React.FC = () => {
         },
         selfDescribingEvent: {
           event: {
-            schema: 'iglu:com.opensnowcat.test/excuse_event/jsonschema/1-0-0',
+            schema: ANYTHING_A_SCHEMA,
             data: {
               excuse_id: res.id,
               excuse_text: res.excuse

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import TimestampPage from '@/pages/TimestampPage';
 import * as backendApiModule from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 describe('TimestampPage', () => {
   beforeEach(() => {
@@ -60,7 +61,7 @@ describe('TimestampPage', () => {
         }),
         selfDescribingEvent: {
           event: {
-            schema: 'iglu:com.opensnowcat.test/timestamp_event/jsonschema/1-0-0',
+            schema: ANYTHING_A_SCHEMA,
             data: {
               timezone: 'America/Sao_Paulo',
               timestamp_iso: '2026-10-12T14:30:00.000Z'

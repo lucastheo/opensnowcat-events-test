@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as snowcatTracker from '@/tracker/snowcat';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 import * as simpleCollector from '@/tracker/simple-collector';
 import { eventEmitter } from '@/tracker/event-emitter';
 
@@ -94,7 +95,7 @@ describe('Event Emitter Dual-Emission Dispatcher', () => {
       },
       selfDescribingEvent: {
         event: {
-          schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: { a: 10, b: 5, operator: '+', result: 15 }
         }
       }

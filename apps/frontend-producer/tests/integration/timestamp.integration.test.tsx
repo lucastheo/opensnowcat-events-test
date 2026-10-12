@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as snowplowSdk from '@snowplow/browser-tracker';
 import { renderApp } from './test-router';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 vi.mock('@snowplow/browser-tracker', () => ({
   newTracker: vi.fn(),
@@ -139,7 +140,7 @@ describe('Timestamp Service - End-to-End Integration', () => {
     expect(snowplowSdk.trackSelfDescribingEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         event: {
-          schema: 'iglu:com.opensnowcat.test/timestamp_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: {
             timezone: 'Europe/London',
             timestamp_iso: '2026-10-12T15:00:00.000Z'

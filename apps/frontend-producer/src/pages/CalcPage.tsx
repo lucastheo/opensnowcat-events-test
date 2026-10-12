@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { calculate, type CalcOperator } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 export const CALC_OP_LABELS: Record<CalcOperator, string> = {
   '+': 'addition',
@@ -47,7 +48,7 @@ export const CalcPage: React.FC = () => {
         },
         selfDescribingEvent: {
           event: {
-            schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
+            schema: ANYTHING_A_SCHEMA,
             data: {
               a: numA,
               b: numB,

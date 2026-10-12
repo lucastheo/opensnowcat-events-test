@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import CalcPage from '@/pages/CalcPage';
 import * as backendApiModule from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 describe('CalcPage', () => {
   beforeEach(() => {
@@ -59,7 +60,7 @@ describe('CalcPage', () => {
       },
       selfDescribingEvent: {
         event: {
-          schema: 'iglu:com.opensnowcat.test/calc_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: {
             a: 20,
             b: 5,

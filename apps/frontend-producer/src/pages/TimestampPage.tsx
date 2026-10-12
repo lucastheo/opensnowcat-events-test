@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { fetchTimestamp } from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 export const TimestampPage: React.FC = () => {
   const defaultTz =
@@ -34,7 +35,7 @@ export const TimestampPage: React.FC = () => {
         },
         selfDescribingEvent: {
           event: {
-            schema: 'iglu:com.opensnowcat.test/timestamp_event/jsonschema/1-0-0',
+            schema: ANYTHING_A_SCHEMA,
             data: {
               timezone: res.timezone,
               timestamp_iso: res.timestamp_iso

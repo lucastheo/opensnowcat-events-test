@@ -8,6 +8,8 @@ import {
 } from '@snowplow/browser-tracker';
 import { VITE_OPENSNOWCAT_URL } from '@/config/env';
 
+export const ANYTHING_A_SCHEMA = 'iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0';
+
 export interface SnowcatPageViewParams {
   title?: string;
   eventId?: string;

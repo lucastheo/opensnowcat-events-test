@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import DicePage from '@/pages/DicePage';
 import * as backendApiModule from '@/services/backend-api';
 import { eventEmitter } from '@/tracker/event-emitter';
+import { ANYTHING_A_SCHEMA } from '@/tracker/snowcat';
 
 describe('DicePage', () => {
   beforeEach(() => {
@@ -59,7 +60,7 @@ describe('DicePage', () => {
       },
       selfDescribingEvent: {
         event: {
-          schema: 'iglu:com.opensnowcat.test/dice_event/jsonschema/1-0-0',
+          schema: ANYTHING_A_SCHEMA,
           data: {
             count: 2,
             sides: 6,
