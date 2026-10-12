@@ -287,41 +287,8 @@ The frontend is specifically designed to emit **both No-Schema (standard) and Se
 
 These events do not require custom Iglu schema registration and are supported natively by OpenSnowcat:
 
-#### 1. Page View Events (`trackPageView`)
-Emitted on initial load and whenever navigating between any of the 5 pages:
-```javascript
-const eventId = crypto.randomUUID();
-const timestamp = new Date().toISOString();
-
-snowplow('trackPageView', {
-  title: document.title,
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-
-// Audit to Simple Collector
-await reportToSimpleCollector(eventId, timestamp, 'frontend', 'page_view');
-```
-
-#### 2. Structured Events (`trackStructEvent`)
-Emitted on service button clicks:
-```javascript
-const eventId = crypto.randomUUID();
-const timestamp = new Date().toISOString();
-
-snowplow('trackStructEvent', {
-  category: 'service',
-  action: 'calculate',            // or 'fetch_timestamp', 'get_excuse', 'roll_dice'
-  label: 'addition',              // specific operation or sub-type
-  property: '12+4',               // parameters string
-  value: 16,                      // numeric result
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-
-// Audit to Simple Collector
-await reportToSimpleCollector(eventId, timestamp, 'frontend', 'struct_event');
-```
+- **Page View Events (`trackPageView`):** Emitted on initial load and route navigation transitions. Follow implementation in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
+- **Structured Events (`trackStructEvent`):** Emitted on service actions (`calculate`, `fetch_timestamp`, `get_excuse`, `roll_dice`) with `category`, `action`, `label`, `property`, and `value`. Follow implementation in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
 
 ---
 
@@ -329,83 +296,21 @@ await reportToSimpleCollector(eventId, timestamp, 'frontend', 'struct_event');
 
 Emitted via `trackSelfDescribingEvent` alongside or in conjunction with service actions. To remain schema-agnostic and avoid requiring custom schema servers, all self-describing events use the official Iglu Central wildcard schema:
 
-- **Schema URI:** `iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0`
+- **Schema URI:** `iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0` (defined as `ANYTHING_A_SCHEMA` in [`src/tracker/snowcat.ts`](../../apps/frontend-producer/src/tracker/snowcat.ts))
 
-```javascript
-snowplow('trackSelfDescribingEvent', {
-  event: {
-    schema: 'iglu:com.snowplowanalytics.iglu/anything-a/jsonschema/1-0-0',
-    data: { /* typed payload */ }
-  },
-  eventId: eventId,
-  trueTimestamp: Date.now()
-});
-```
-
-#### Service Payloads (Emitted under `anything-a`):
-
-#### 1. Calculator Payload
-- **Data Payload:**
-  ```json
-  {
-    "a": 12.0,
-    "b": 4.0,
-    "operator": "+",
-    "result": 16.0
-  }
-  ```
-
-#### 2. Timestamp Payload
-- **Data Payload:**
-  ```json
-  {
-    "timezone": "America/Sao_Paulo",
-    "timestamp_iso": "2026-10-11T14:30:00.123Z"
-  }
-  ```
-
-#### 3. Daily Excuse Payload
-- **Data Payload:**
-  ```json
-  {
-    "excuse_id": 42,
-    "excuse_text": "My Docker container is eating 100% CPU."
-  }
-  ```
-
-#### 4. Dice Roll Payload
-- **Data Payload:**
-  ```json
-  {
-    "count": 2,
-    "sides": 6,
-    "rolls": [4, 6],
-    "total": 10
-  }
-  ```
+Follow the specific page files for event dispatching and payload shapes:
+- **Calculator:** [`src/pages/CalcPage.tsx`](../../apps/frontend-producer/src/pages/CalcPage.tsx) (`a`, `b`, `operator`, `result`)
+- **Location Timestamp:** [`src/pages/TimestampPage.tsx`](../../apps/frontend-producer/src/pages/TimestampPage.tsx) (`timezone`, `timestamp_iso`)
+- **Daily Excuse:** [`src/pages/ExcusePage.tsx`](../../apps/frontend-producer/src/pages/ExcusePage.tsx) (`excuse_id`, `excuse_text`)
+- **Dice Roll:** [`src/pages/DicePage.tsx`](../../apps/frontend-producer/src/pages/DicePage.tsx) (`count`, `sides`, `rolls`, `total`)
 
 ---
 
 ### 5.3 Audit Integration with Simple Collector
 
-For every emitted event (whether No-Schema or Self-Describing), a corresponding audit record is transmitted to the Simple Collector:
+For every emitted event (whether No-Schema or Self-Describing), a corresponding audit record (`event_id`, `timestamp`, `source: "frontend"`, `event_type`) is transmitted to the Simple Collector (`POST /collect`). Follow implementation in [`src/tracker/simple-collector.ts`](../../apps/frontend-producer/src/tracker/simple-collector.ts) and [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts).
 
-```javascript
-async function reportToSimpleCollector(eventId, timestamp, source, eventType) {
-  await fetch(`${VITE_SIMPLE_COLLECTOR_URL}/collect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      event_id: eventId,
-      timestamp: timestamp,
-      source: source,
-      event_type: eventType  // e.g. "page_view", "struct_event", "self_describing"
-    })
-  });
-}
-```
-
-> **Note on Event Mode:** The frontend UI includes an **Event Mode Toggle** (`#event-mode-select`) with options:
+> **Note on Event Mode:** The frontend UI includes an **Event Mode Toggle** (`#event-mode-select`) managed by [`src/tracker/event-emitter.ts`](../../apps/frontend-producer/src/tracker/event-emitter.ts):
 > - `both` (Default: fires both Structured and Self-Describing events on action)
 > - `no_schema_only` (Fires only No-Schema / Structured events)
 > - `self_describing_only` (Fires only Self-Describing events)
