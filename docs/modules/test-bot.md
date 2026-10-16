@@ -127,7 +127,7 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
 | `--concurrency` | `number` | `1` | Number of parallel worker threads / browser contexts. |
 | `--delay-ms` | `number` | `50` | Artificial pause between iterations in milliseconds. |
 | `--mode` | `enum` | `both` | Execution target: `frontend`, `backend`, or `both`. |
-| `--headless` | `boolean` | `true` | Run browser in headless mode (`false` for visual debugging). |
+| `--headless` | `boolean` | `true` (`false` in `dev` mode) | Run browser in headless mode (`false` for visual debugging). |
 
 ---
 

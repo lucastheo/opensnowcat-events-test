@@ -55,6 +55,16 @@ describe('CLI (index.ts)', () => {
       expect(opts.headless).toBe(true);
     });
 
+    it('should default headless to false in development mode', () => {
+      delete process.env.MODE;
+      delete process.env.HEADLESS;
+      process.env.NODE_ENV = 'development';
+
+      const opts = parseOptions([]);
+
+      expect(opts.headless).toBe(false);
+    });
+
     it('should respect environment variables as defaults', () => {
       process.env.FRONTEND_URL = 'http://env-fe:3000';
       process.env.BACKEND_URL = 'http://env-be:4000';

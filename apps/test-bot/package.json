@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node --no-warnings dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "HEADLESS=false tsx src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

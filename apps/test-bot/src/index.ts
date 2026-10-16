@@ -59,7 +59,9 @@ export function createCli(): Command {
       '--headless <boolean>',
       'Run browser in headless mode',
       (val) => val !== 'false',
-      process.env.HEADLESS !== 'false'
+      process.env.HEADLESS !== undefined
+        ? process.env.HEADLESS !== 'false'
+        : process.env.NODE_ENV !== 'development'
     );
 
   return program;
