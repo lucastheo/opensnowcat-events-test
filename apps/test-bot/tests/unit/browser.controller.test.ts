@@ -110,19 +110,28 @@ describe('BrowserController', () => {
     });
   });
 
-  it('should execute a full cycle across all 4 service pages successfully', async () => {
+  it('should execute a full cycle across all 4 service pages and reuse the same page across iterations', async () => {
     const controller = new BrowserController({
       frontendUrl: 'http://frontend:3000',
+      closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
     });
 
-    const result = await controller.runCycle();
+    const result1 = await controller.runCycle();
+    const result2 = await controller.runCycle();
 
-    expect(result.success).toBe(true);
-    expect(result.pagesInteracted).toBe(4);
-    expect(result.durationMs).toBeGreaterThanOrEqual(0);
-    expect(result.error).toBeUndefined();
+    expect(result1.success).toBe(true);
+    expect(result1.pagesInteracted).toBe(4);
+    expect(result1.durationMs).toBeGreaterThanOrEqual(0);
+    expect(result1.error).toBeUndefined();
+
+    expect(result2.success).toBe(true);
+    expect(result2.pagesInteracted).toBe(4);
+
+    // Verify newPage was called only once and reused on the second cycle
+    expect(mockContext.newPage).toHaveBeenCalledTimes(1);
+    expect(mockPage.close).not.toHaveBeenCalled();
 
     // Verify Home navigation
     expect(mockPage.goto).toHaveBeenCalledWith('http://frontend:3000/', { timeout: 10000 });
@@ -160,9 +169,6 @@ describe('BrowserController', () => {
       state: 'visible',
       timeout: 10000,
     });
-
-    // Verify page closed
-    expect(mockPage.close).toHaveBeenCalled();
   });
 
   it('should fallback to goto if navigation selector is not present in DOM', async () => {
@@ -171,6 +177,7 @@ describe('BrowserController', () => {
 
     const controller = new BrowserController({
       frontendUrl: 'http://frontend:3000',
+      closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
     });
@@ -190,6 +197,7 @@ describe('BrowserController', () => {
 
     const controller = new BrowserController({
       frontendUrl: 'http://frontend:3000',
+      closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
     });
@@ -199,22 +207,42 @@ describe('BrowserController', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('Page load timed out');
     expect(result.pagesInteracted).toBe(0);
-    expect(mockPage.close).toHaveBeenCalled();
+    expect(mockPage.close).not.toHaveBeenCalled();
   });
 
-  it('should close contexts and browser cleanly on close()', async () => {
-    const controller = new BrowserController({
-      frontendUrl: 'http://frontend:3000',
-      chromium: mockChromium as any,
-      logger,
-    });
+  it('should wait 10 seconds by default before closing pages, contexts, and browser on close()', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new BrowserController({
+        frontendUrl: 'http://frontend:3000',
+        chromium: mockChromium as any,
+        logger,
+      });
 
-    await controller.newContext();
-    expect(controller.getBrowser()).toBeDefined();
+      await controller.runCycle();
+      expect(controller.getBrowser()).toBeDefined();
 
-    await controller.close();
-    expect(mockContext.close).toHaveBeenCalled();
-    expect(mockBrowser.close).toHaveBeenCalled();
-    expect(controller.getBrowser()).toBeUndefined();
+      let closed = false;
+      const closePromise = controller.close().then(() => {
+        closed = true;
+      });
+
+      // Before 10s elapsed, browser should still be open
+      await vi.advanceTimersByTimeAsync(9999);
+      expect(closed).toBe(false);
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+
+      // At 10s, close completes
+      await vi.advanceTimersByTimeAsync(1);
+      await closePromise;
+
+      expect(closed).toBe(true);
+      expect(mockPage.close).toHaveBeenCalled();
+      expect(mockContext.close).toHaveBeenCalled();
+      expect(mockBrowser.close).toHaveBeenCalled();
+      expect(controller.getBrowser()).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

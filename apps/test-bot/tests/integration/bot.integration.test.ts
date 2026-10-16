@@ -305,6 +305,7 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
       iterations,
       concurrency: 1,
       delayMs: 0,
+      closeDelayMs: 0,
       headless: true,
       logger,
     });
@@ -341,6 +342,7 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
       iterations,
       concurrency,
       delayMs: 10,
+      closeDelayMs: 0,
       headless: true,
       logger,
     });

@@ -135,7 +135,7 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
 
 ### 5.1 Frontend Interaction Flow (Playwright)
 1. Initialize browser instance (Chromium).
-2. Create an isolated `BrowserContext` and `Page`.
+2. Create an isolated `BrowserContext` and a reusable `Page` per worker.
 3. **Container Network URL Rewriting (`context.route`):**
    - The Frontend application bundle is built with browser-facing URLs (`http://localhost:4000`, `http://localhost:5000`, etc.) suitable for external client browsers.
    - When Playwright runs inside the `test-bot` container on the shared bridge network (`snowcat-net`), API and collector requests to `localhost:*` executed by the browser page target the `test-bot` container itself and fail unless host networking is used or requests are rewritten.
@@ -151,7 +151,7 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
        route.continue({ url: route.request().url().replace('http://localhost:5000', target) });
      });
      ```
-4. In each test cycle / iteration:
+4. In each test cycle / iteration (reusing the same `Page` for that worker):
    - Navigate to Home (`--frontend-url/`).
    - Click navigation links to visit service pages (`/calc`, `/timestamp`, `/excuse`, `/dice`).
    - Interact with service controls:
@@ -160,7 +160,7 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
      - **Daily Excuse (`/excuse`):** Clicks `#btn-generate-excuse`.
      - **Dice Emulator (`/dice`):** Clicks `#btn-roll-dice`.
    - Await response rendering in DOM (e.g., `#calc-result`, `#timestamp-result`, `#excuse-result`, `#dice-result`).
-5. Close browser context upon completion.
+5. Wait 10 seconds (`closeDelayMs`, default `10000`ms) upon completion before closing the pages, browser contexts, and browser instance.
 
 ### 5.2 Backend API Request Flow
 1. In each iteration, issue direct requests to backend service endpoints:

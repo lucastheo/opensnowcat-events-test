@@ -14,6 +14,7 @@ export interface RunnerOptions {
   iterations?: number;
   concurrency?: number;
   delayMs?: number;
+  closeDelayMs?: number;
   mode?: ExecutionMode;
   headless?: boolean;
   logger?: Logger;
@@ -30,6 +31,7 @@ export class Runner {
   private readonly iterations: number;
   private readonly concurrency: number;
   private readonly delayMs: number;
+  private readonly closeDelayMs?: number;
   private readonly mode: ExecutionMode;
   private readonly headless: boolean;
   private readonly logger: Logger;
@@ -49,6 +51,7 @@ export class Runner {
     this.iterations = options.iterations ?? 100;
     this.concurrency = Math.max(1, options.concurrency ?? 1);
     this.delayMs = Math.max(0, options.delayMs ?? 50);
+    this.closeDelayMs = options.closeDelayMs;
     this.mode = options.mode ?? 'both';
     this.headless = options.headless ?? true;
     this.logger = options.logger ?? defaultLogger;
@@ -69,6 +72,7 @@ export class Runner {
           simpleCollectorUrl: this.simpleCollectorUrl,
           opensnowcatUrl: this.opensnowcatUrl,
           headless: this.headless,
+          closeDelayMs: this.closeDelayMs,
           logger: this.logger,
         });
     } else {
@@ -152,22 +156,16 @@ export class Runner {
       context = await this.browserController.newContext();
     }
 
-    try {
-      while (!this.aborted) {
-        const iter = getNextIndex();
-        if (iter === null) {
-          break;
-        }
-
-        await this.executeIteration(context);
-
-        if (this.delayMs > 0 && !this.aborted) {
-          await this.sleep(this.delayMs);
-        }
+    while (!this.aborted) {
+      const iter = getNextIndex();
+      if (iter === null) {
+        break;
       }
-    } finally {
-      if (context) {
-        await context.close().catch(() => {});
+
+      await this.executeIteration(context);
+
+      if (this.delayMs > 0 && !this.aborted) {
+        await this.sleep(this.delayMs);
       }
     }
   }

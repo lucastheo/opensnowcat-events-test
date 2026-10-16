@@ -8,6 +8,7 @@ export interface BrowserControllerOptions {
   opensnowcatUrl?: string;
   headless?: boolean;
   timeoutMs?: number;
+  closeDelayMs?: number;
   logger?: Logger;
   chromium?: typeof chromium;
 }
@@ -26,12 +27,14 @@ export class BrowserController {
   private readonly opensnowcatUrl?: string;
   private readonly headless: boolean;
   private readonly timeoutMs: number;
+  private readonly closeDelayMs: number;
   private readonly logger: Logger;
   private readonly launcher: typeof chromium;
 
   private browser?: Browser;
   private defaultContext?: BrowserContext;
   private readonly contexts: Set<BrowserContext> = new Set();
+  private readonly contextPages: Map<BrowserContext, Page> = new Map();
 
   constructor(options: BrowserControllerOptions) {
     this.frontendUrl = options.frontendUrl.replace(/\/$/, '');
@@ -46,6 +49,7 @@ export class BrowserController {
       : process.env.OPENSNOWCAT_URL || 'http://localhost:8080';
     this.headless = options.headless ?? true;
     this.timeoutMs = options.timeoutMs ?? 10000;
+    this.closeDelayMs = options.closeDelayMs ?? 10000;
     this.logger = options.logger ?? defaultLogger;
     this.launcher = options.chromium ?? chromium;
   }
@@ -90,6 +94,18 @@ export class BrowserController {
       this.defaultContext = await this.newContext();
     }
     return this.defaultContext;
+  }
+
+  private async getOrCreatePage(context: BrowserContext): Promise<Page> {
+    const existingPage = this.contextPages.get(context);
+    if (existingPage && (typeof existingPage.isClosed !== 'function' || !existingPage.isClosed())) {
+      return existingPage;
+    }
+
+    const page = await context.newPage();
+    page.setDefaultTimeout(this.timeoutMs);
+    this.contextPages.set(context, page);
+    return page;
   }
 
   private async navigateToService(page: Page, selector: string, path: string): Promise<void> {
@@ -138,13 +154,11 @@ export class BrowserController {
 
   async runCycle(context?: BrowserContext): Promise<BrowserCycleResult> {
     const startTime = performance.now();
-    let page: Page | undefined;
     let pagesInteracted = 0;
 
     try {
       const activeContext = context ?? (await this.getOrCreateContext());
-      page = await activeContext.newPage();
-      page.setDefaultTimeout(this.timeoutMs);
+      const page = await this.getOrCreatePage(activeContext);
 
       // Home
       await page.goto(`${this.frontendUrl}/`, { timeout: this.timeoutMs });
@@ -215,14 +229,20 @@ export class BrowserController {
         pagesInteracted,
         error: errorMessage,
       };
-    } finally {
-      if (page) {
-        await page.close().catch(() => {});
-      }
     }
   }
 
   async close(): Promise<void> {
+    if ((this.browser || this.contexts.size > 0) && this.closeDelayMs > 0) {
+      this.logger.info(`Waiting ${this.closeDelayMs / 1000}s before closing browser...`);
+      await new Promise((resolve) => setTimeout(resolve, this.closeDelayMs));
+    }
+
+    for (const page of this.contextPages.values()) {
+      await page.close().catch(() => {});
+    }
+    this.contextPages.clear();
+
     for (const ctx of this.contexts) {
       await ctx.close().catch(() => {});
     }
