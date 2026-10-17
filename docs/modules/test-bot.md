@@ -84,7 +84,10 @@ apps/test-bot/
     │   ├── metrics.test.ts          # 1:1 Unit tests for metrics tracking and summarization
     │   └── runner.test.ts           # 1:1 Unit tests for runner and worker pool orchestration
     └── integration/
-        └── bot.integration.test.ts  # End-to-end bot test with mock servers
+        ├── bot.integration.test.ts  # End-to-end bot test with mock servers
+        ├── parameters.integration.test.ts # One behavioral test group per non-URL parameter
+        └── helpers/
+            └── mock-servers.ts      # Shared mock backend/frontend with hit, page-load and in-flight counters
 ```
 
 ### 3.2 Dockerfile Specification (`apps/test-bot/Dockerfile`)
@@ -128,6 +131,8 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
 | `--delay-ms` | `number` | `50` | Artificial pause between iterations in milliseconds. |
 | `--mode` | `enum` | `both` | Execution target: `frontend`, `backend`, or `both`. |
 | `--headless` | `boolean` | `true` (`false` in `dev` mode) | Run browser in headless mode (`false` for visual debugging). |
+
+**Parameter integration coverage** (`parameters.integration.test.ts`): `iterations` (exact endpoint hit counts, 0 = no-op), `concurrency` (peak in-flight requests, capped by iterations, speedup), `delay-ms` (elapsed time), `mode` (frontend page loads / API hits per mode), `headless` (value passed to `chromium.launch`), and `closeDelayMs` (page-open duration). URL parameters are excluded.
 
 ---
 
