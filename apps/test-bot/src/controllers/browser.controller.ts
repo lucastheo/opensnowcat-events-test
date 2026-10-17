@@ -1,8 +1,10 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { Logger, logger as defaultLogger } from '../utils/logger.js';
+import type { TargetUrls } from '../runner.js';
 
 export interface BrowserControllerOptions {
-  frontendUrl: string;
+  targetUrls?: TargetUrls;
+  frontendUrl?: string;
   backendUrl?: string;
   simpleCollectorUrl?: string;
   opensnowcatUrl?: string;
@@ -21,10 +23,7 @@ export interface BrowserCycleResult {
 }
 
 export class BrowserController {
-  private readonly frontendUrl: string;
-  private readonly backendUrl?: string;
-  private readonly simpleCollectorUrl?: string;
-  private readonly opensnowcatUrl?: string;
+  private readonly targetUrls: TargetUrls;
   private readonly headless: boolean;
   private readonly timeoutMs: number;
   private readonly closeDelayMs: number;
@@ -37,19 +36,36 @@ export class BrowserController {
   private readonly contextPages: Map<BrowserContext, Page> = new Map();
 
   constructor(options: BrowserControllerOptions) {
-    this.frontendUrl = options.frontendUrl.replace(/\/$/, '');
-    this.backendUrl = options.backendUrl
-      ? options.backendUrl.replace(/\/$/, '')
-      : process.env.BACKEND_URL || 'http://backend-producer:4000';
-    this.simpleCollectorUrl = options.simpleCollectorUrl
-      ? options.simpleCollectorUrl.replace(/\/$/, '')
-      : process.env.SIMPLE_COLLECTOR_URL || 'http://simple-collector:5000';
-    this.opensnowcatUrl = options.opensnowcatUrl
-      ? options.opensnowcatUrl.replace(/\/$/, '')
-      : process.env.OPENSNOWCAT_URL || 'http://localhost:8080';
+    const rawUrls = options.targetUrls ?? {
+      frontendUrl: options.frontendUrl ?? 'http://localhost:3000',
+      backendUrl: options.backendUrl,
+      simpleCollectorUrl: options.simpleCollectorUrl,
+      opensnowcatUrl: options.opensnowcatUrl,
+    };
+    this.targetUrls = {
+      frontendUrl: (rawUrls.frontendUrl || options.frontendUrl || 'http://localhost:3000').replace(/\/$/, ''),
+      backendUrl: (
+        rawUrls.backendUrl ||
+        options.backendUrl ||
+        process.env.BACKEND_URL ||
+        'http://backend-producer:4000'
+      ).replace(/\/$/, ''),
+      simpleCollectorUrl: (
+        rawUrls.simpleCollectorUrl ||
+        options.simpleCollectorUrl ||
+        process.env.SIMPLE_COLLECTOR_URL ||
+        'http://simple-collector:5000'
+      ).replace(/\/$/, ''),
+      opensnowcatUrl: (
+        rawUrls.opensnowcatUrl ||
+        options.opensnowcatUrl ||
+        process.env.OPENSNOWCAT_URL ||
+        'http://localhost:8080'
+      ).replace(/\/$/, ''),
+    };
     this.headless = options.headless ?? true;
     this.timeoutMs = options.timeoutMs ?? 10000;
-    this.closeDelayMs = options.closeDelayMs ?? 10000;
+    this.closeDelayMs = Math.max(0, options.closeDelayMs ?? 0);
     this.logger = options.logger ?? defaultLogger;
     this.launcher = options.chromium ?? chromium;
   }
@@ -72,9 +88,9 @@ export class BrowserController {
     this.contexts.add(context);
 
     const rewrites: [RegExp, string | undefined][] = [
-      [/^http:\/\/localhost:4000/, this.backendUrl],
-      [/^http:\/\/localhost:5000/, this.simpleCollectorUrl],
-      [/^http:\/\/localhost:8080/, this.opensnowcatUrl],
+      [/^http:\/\/localhost:4000/, this.targetUrls.backendUrl],
+      [/^http:\/\/localhost:5000/, this.targetUrls.simpleCollectorUrl],
+      [/^http:\/\/localhost:8080/, this.targetUrls.opensnowcatUrl],
     ];
 
     for (const [pattern, target] of rewrites) {
@@ -108,6 +124,24 @@ export class BrowserController {
     return page;
   }
 
+  private async returnToHome(page: Page): Promise<void> {
+    let elementFound = false;
+    if (typeof page.$ === 'function') {
+      const el = await page.$('#link-nav-home').catch(() => null);
+      if (el) {
+        elementFound = true;
+      }
+    }
+
+    if (elementFound) {
+      await page.click('#link-nav-home');
+    } else if (typeof page.goto === 'function') {
+      await page.goto(`${this.targetUrls.frontendUrl}/`, { timeout: this.timeoutMs });
+    } else {
+      await page.click('#link-nav-home');
+    }
+  }
+
   private async navigateToService(page: Page, selector: string, path: string): Promise<void> {
     let elementFound = false;
     if (typeof page.$ === 'function') {
@@ -120,7 +154,7 @@ export class BrowserController {
     if (elementFound) {
       await page.click(selector);
     } else if (typeof page.goto === 'function') {
-      await page.goto(`${this.frontendUrl}${path}`, { timeout: this.timeoutMs });
+      await page.goto(`${this.targetUrls.frontendUrl}${path}`, { timeout: this.timeoutMs });
     } else {
       await page.click(selector);
     }
@@ -148,6 +182,14 @@ export class BrowserController {
     resultSelector: string
   ): Promise<void> {
     await this.navigateToService(page, navSelector, path);
+    if (typeof page.evaluate === 'function') {
+      await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (el) {
+          el.textContent = '';
+        }
+      }, resultSelector).catch(() => {});
+    }
     await action(page);
     await this.waitForResult(page, resultSelector);
   }
@@ -161,12 +203,12 @@ export class BrowserController {
       const page = await this.getOrCreatePage(activeContext);
 
       // Home
-      await page.goto(`${this.frontendUrl}/`, { timeout: this.timeoutMs });
+      await page.goto(`${this.targetUrls.frontendUrl}/`, { timeout: this.timeoutMs });
 
       // 1. Calculator
       await this.interactWithService(
         page,
-        '#header-nav-calc, #link-nav-calc',
+        '#link-nav-calc, #header-nav-calc',
         '/calc',
         async (p) => {
           await p.fill('#calc-input-a', '12');
@@ -177,10 +219,12 @@ export class BrowserController {
       );
       pagesInteracted++;
 
+      await this.returnToHome(page);
+
       // 2. Timestamp
       await this.interactWithService(
         page,
-        '#header-nav-timestamp, #link-nav-timestamp',
+        '#link-nav-timestamp, #header-nav-timestamp',
         '/timestamp',
         async (p) => {
           await p.click('#btn-timestamp-fetch');
@@ -189,10 +233,12 @@ export class BrowserController {
       );
       pagesInteracted++;
 
+      await this.returnToHome(page);
+
       // 3. Excuse
       await this.interactWithService(
         page,
-        '#header-nav-excuse, #link-nav-excuse',
+        '#link-nav-excuse, #header-nav-excuse',
         '/excuse',
         async (p) => {
           await p.click('#btn-generate-excuse');
@@ -201,10 +247,12 @@ export class BrowserController {
       );
       pagesInteracted++;
 
+      await this.returnToHome(page);
+
       // 4. Dice
       await this.interactWithService(
         page,
-        '#header-nav-dice, #link-nav-dice',
+        '#link-nav-dice, #header-nav-dice',
         '/dice',
         async (p) => {
           await p.click('#btn-roll-dice');
@@ -232,8 +280,8 @@ export class BrowserController {
     }
   }
 
-  async close(): Promise<void> {
-    if ((this.browser || this.contexts.size > 0) && this.closeDelayMs > 0) {
+  async close(skipDelay: boolean = false): Promise<void> {
+    if (!skipDelay && (this.browser || this.contexts.size > 0) && this.closeDelayMs > 0) {
       this.logger.info(`Waiting ${this.closeDelayMs / 1000}s before closing browser...`);
       await new Promise((resolve) => setTimeout(resolve, this.closeDelayMs));
     }

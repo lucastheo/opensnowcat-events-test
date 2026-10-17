@@ -1,4 +1,4 @@
-import type { BrowserContext } from 'playwright';
+import type { BrowserContext, chromium } from 'playwright';
 import { BrowserController, type BrowserCycleResult } from './controllers/browser.controller.js';
 import { ApiController, type ExecuteAllResult } from './controllers/api.controller.js';
 import { Logger, logger as defaultLogger } from './utils/logger.js';
@@ -6,9 +6,17 @@ import { MetricsTracker, type MetricsSummary } from './utils/metrics.js';
 
 export type ExecutionMode = 'frontend' | 'backend' | 'both';
 
-export interface RunnerOptions {
+export interface TargetUrls {
   frontendUrl: string;
-  backendUrl: string;
+  backendUrl?: string;
+  simpleCollectorUrl?: string;
+  opensnowcatUrl?: string;
+}
+
+export interface RunnerOptions {
+  targetUrls?: TargetUrls;
+  frontendUrl?: string;
+  backendUrl?: string;
   simpleCollectorUrl?: string;
   opensnowcatUrl?: string;
   iterations?: number;
@@ -21,17 +29,15 @@ export interface RunnerOptions {
   metrics?: MetricsTracker;
   browserController?: BrowserController;
   apiController?: ApiController;
+  chromium?: typeof chromium;
 }
 
 export class Runner {
-  private readonly frontendUrl: string;
-  private readonly backendUrl: string;
-  private readonly simpleCollectorUrl?: string;
-  private readonly opensnowcatUrl?: string;
+  private readonly targetUrls: TargetUrls;
   private readonly iterations: number;
   private readonly concurrency: number;
   private readonly delayMs: number;
-  private readonly closeDelayMs?: number;
+  private readonly closeDelayMs: number;
   private readonly mode: ExecutionMode;
   private readonly headless: boolean;
   private readonly logger: Logger;
@@ -44,14 +50,22 @@ export class Runner {
   private completedIterations: number = 0;
 
   constructor(options: RunnerOptions) {
-    this.frontendUrl = options.frontendUrl;
-    this.backendUrl = options.backendUrl;
-    this.simpleCollectorUrl = options.simpleCollectorUrl;
-    this.opensnowcatUrl = options.opensnowcatUrl;
+    const rawUrls = options.targetUrls ?? {
+      frontendUrl: options.frontendUrl ?? 'http://localhost:3000',
+      backendUrl: options.backendUrl,
+      simpleCollectorUrl: options.simpleCollectorUrl,
+      opensnowcatUrl: options.opensnowcatUrl,
+    };
+    this.targetUrls = {
+      frontendUrl: rawUrls.frontendUrl || options.frontendUrl || 'http://localhost:3000',
+      backendUrl: rawUrls.backendUrl || options.backendUrl || process.env.BACKEND_URL || 'http://localhost:4000',
+      simpleCollectorUrl: rawUrls.simpleCollectorUrl ?? options.simpleCollectorUrl,
+      opensnowcatUrl: rawUrls.opensnowcatUrl ?? options.opensnowcatUrl,
+    };
     this.iterations = options.iterations ?? 100;
     this.concurrency = Math.max(1, options.concurrency ?? 1);
     this.delayMs = Math.max(0, options.delayMs ?? 50);
-    this.closeDelayMs = options.closeDelayMs ?? 10000;
+    this.closeDelayMs = Math.max(0, options.closeDelayMs ?? 0);
     this.mode = options.mode ?? 'both';
     this.headless = options.headless ?? true;
     this.logger = options.logger ?? defaultLogger;
@@ -60,20 +74,18 @@ export class Runner {
     this.apiController =
       options.apiController ??
       new ApiController({
-        backendUrl: this.backendUrl,
+        backendUrl: this.targetUrls.backendUrl!,
       });
 
     if (this.mode === 'frontend' || this.mode === 'both') {
       this.browserController =
         options.browserController ??
         new BrowserController({
-          frontendUrl: this.frontendUrl,
-          backendUrl: this.backendUrl,
-          simpleCollectorUrl: this.simpleCollectorUrl,
-          opensnowcatUrl: this.opensnowcatUrl,
+          targetUrls: this.targetUrls,
           headless: this.headless,
           closeDelayMs: this.closeDelayMs,
           logger: this.logger,
+          chromium: options.chromium,
         });
     } else {
       this.browserController = options.browserController;
@@ -129,7 +141,7 @@ export class Runner {
       process.removeListener('SIGTERM', sigtermHandler);
 
       if (this.browserController) {
-        await this.browserController.close().catch(() => {});
+        await this.browserController.close(this.aborted).catch(() => {});
       }
 
       this.logger.info(`\n${this.metrics.formatSummary()}`);
@@ -174,6 +186,8 @@ export class Runner {
     const startTime = performance.now();
     let browserRes: BrowserCycleResult | undefined;
     let apiRes: ExecuteAllResult | undefined;
+    let success = true;
+    let errorMsg: string | undefined;
 
     try {
       if (this.mode === 'frontend') {
@@ -195,33 +209,29 @@ export class Runner {
         apiRes = aRes;
       }
 
-      const durationMs = Math.round(performance.now() - startTime);
-
-      let success = true;
       const errors: string[] = [];
 
-      if (browserRes) {
-        if (!browserRes.success) {
-          success = false;
-          if (browserRes.error) errors.push(`Browser: ${browserRes.error}`);
+      if (browserRes && !browserRes.success) {
+        success = false;
+        if (browserRes.error) errors.push(`Browser: ${browserRes.error}`);
+      }
+
+      if (apiRes && !apiRes.success) {
+        success = false;
+        if (apiRes.errors.length > 0) {
+          errors.push(`API: ${apiRes.errors.join('; ')}`);
         }
       }
 
-      if (apiRes) {
-        if (!apiRes.success) {
-          success = false;
-          if (apiRes.errors.length > 0) {
-            errors.push(`API: ${apiRes.errors.join('; ')}`);
-          }
-        }
+      if (errors.length > 0) {
+        errorMsg = errors.join(' | ');
       }
-
-      const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
-      this.metrics.recordIteration(durationMs, success, errorMsg);
     } catch (err) {
+      success = false;
+      errorMsg = err instanceof Error ? err.message : String(err);
+    } finally {
       const durationMs = Math.round(performance.now() - startTime);
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.metrics.recordIteration(durationMs, false, errorMsg);
+      this.metrics.recordIteration(durationMs, success, errorMsg);
     }
 
     this.completedIterations++;

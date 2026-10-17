@@ -20,14 +20,14 @@ export const frontendHtml = `<!DOCTYPE html>
     <a id="header-nav-timestamp" href="/timestamp">Timestamp</a>
     <a id="header-nav-excuse" href="/excuse">Excuse</a>
     <a id="header-nav-dice" href="/dice">Dice</a>
-    <a id="link-nav-calc" href="/calc" style="display:none;">Calc</a>
-    <a id="link-nav-timestamp" href="/timestamp" style="display:none;">Timestamp</a>
-    <a id="link-nav-excuse" href="/excuse" style="display:none;">Excuse</a>
-    <a id="link-nav-dice" href="/dice" style="display:none;">Dice</a>
   </nav>
 
   <div id="view-home" class="view">
     <h1>Home Page</h1>
+    <a id="link-nav-calc" href="/calc">Open Calculator</a>
+    <a id="link-nav-timestamp" href="/timestamp">Open Timestamp</a>
+    <a id="link-nav-excuse" href="/excuse">Open Excuse</a>
+    <a id="link-nav-dice" href="/dice">Open Dice</a>
   </div>
 
   <div id="view-calc" class="view" style="display: none;">
@@ -76,7 +76,7 @@ export const frontendHtml = `<!DOCTYPE html>
 
     renderRoute(window.location.pathname);
 
-    document.querySelectorAll('nav a').forEach(function(a) {
+    document.querySelectorAll('nav a, #view-home a').forEach(function(a) {
       a.addEventListener('click', function(e) {
         e.preventDefault();
         var href = a.getAttribute('href');

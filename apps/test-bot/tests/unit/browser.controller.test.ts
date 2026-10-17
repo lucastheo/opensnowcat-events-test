@@ -16,6 +16,7 @@ describe('BrowserController', () => {
       goto: vi.fn().mockResolvedValue(null),
       click: vi.fn().mockResolvedValue(undefined),
       fill: vi.fn().mockResolvedValue(undefined),
+      evaluate: vi.fn().mockResolvedValue(undefined),
       waitForSelector: vi.fn().mockResolvedValue(undefined as any),
       waitForFunction: vi.fn().mockResolvedValue(undefined as any),
       $: vi.fn().mockResolvedValue({} as any),
@@ -47,10 +48,12 @@ describe('BrowserController', () => {
 
   it('should initialize with default options and strip trailing slashes', () => {
     const controller = new BrowserController({
-      frontendUrl: 'http://localhost:3000/',
-      backendUrl: 'http://localhost:4000/',
-      simpleCollectorUrl: 'http://localhost:5000/',
-      opensnowcatUrl: 'http://localhost:8080/',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000/',
+        backendUrl: 'http://localhost:4000/',
+        simpleCollectorUrl: 'http://localhost:5000/',
+        opensnowcatUrl: 'http://localhost:8080/',
+      },
       chromium: mockChromium as any,
       logger,
     });
@@ -61,7 +64,9 @@ describe('BrowserController', () => {
 
   it('should launch chromium with configured headless option and reuse instance', async () => {
     const controller = new BrowserController({
-      frontendUrl: 'http://localhost:3000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+      },
       headless: false,
       chromium: mockChromium as any,
       logger,
@@ -79,10 +84,12 @@ describe('BrowserController', () => {
 
   it('should create context with route interception for backend, simple collector, and opensnowcat', async () => {
     const controller = new BrowserController({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://backend-producer:4000',
-      simpleCollectorUrl: 'http://simple-collector:5000',
-      opensnowcatUrl: 'http://snowcat-collector:8080',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://backend-producer:4000',
+        simpleCollectorUrl: 'http://simple-collector:5000',
+        opensnowcatUrl: 'http://snowcat-collector:8080',
+      },
       chromium: mockChromium as any,
       logger,
     });
@@ -112,7 +119,9 @@ describe('BrowserController', () => {
 
   it('should execute a full cycle across all 4 service pages and reuse the same page across iterations', async () => {
     const controller = new BrowserController({
-      frontendUrl: 'http://frontend:3000',
+      targetUrls: {
+        frontendUrl: 'http://frontend:3000',
+      },
       closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
@@ -136,8 +145,14 @@ describe('BrowserController', () => {
     // Verify Home navigation
     expect(mockPage.goto).toHaveBeenCalledWith('http://frontend:3000/', { timeout: 10000 });
 
+    // Verify result elements cleared before action
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), '#calc-result');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), '#timestamp-result');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), '#excuse-result');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), '#dice-result');
+
     // Verify Calculator interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-calc, #link-nav-calc');
+    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-calc, #header-nav-calc');
     expect(mockPage.fill).toHaveBeenCalledWith('#calc-input-a', '12');
     expect(mockPage.fill).toHaveBeenCalledWith('#calc-input-b', '4');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-calc-submit');
@@ -146,8 +161,11 @@ describe('BrowserController', () => {
       timeout: 10000,
     });
 
+    // Verify returning to Home
+    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-home');
+
     // Verify Timestamp interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-timestamp, #link-nav-timestamp');
+    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-timestamp, #header-nav-timestamp');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-timestamp-fetch');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#timestamp-result', {
       state: 'visible',
@@ -155,7 +173,7 @@ describe('BrowserController', () => {
     });
 
     // Verify Excuse interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-excuse, #link-nav-excuse');
+    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-excuse, #header-nav-excuse');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-generate-excuse');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#excuse-result', {
       state: 'visible',
@@ -163,7 +181,7 @@ describe('BrowserController', () => {
     });
 
     // Verify Dice interaction
-    expect(mockPage.click).toHaveBeenCalledWith('#header-nav-dice, #link-nav-dice');
+    expect(mockPage.click).toHaveBeenCalledWith('#link-nav-dice, #header-nav-dice');
     expect(mockPage.click).toHaveBeenCalledWith('#btn-roll-dice');
     expect(mockPage.waitForSelector).toHaveBeenCalledWith('#dice-result', {
       state: 'visible',
@@ -176,7 +194,9 @@ describe('BrowserController', () => {
     mockPage.$ = vi.fn().mockResolvedValue(null);
 
     const controller = new BrowserController({
-      frontendUrl: 'http://frontend:3000',
+      targetUrls: {
+        frontendUrl: 'http://frontend:3000',
+      },
       closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
@@ -196,7 +216,9 @@ describe('BrowserController', () => {
     mockPage.goto = vi.fn().mockRejectedValue(new Error('Page load timed out'));
 
     const controller = new BrowserController({
-      frontendUrl: 'http://frontend:3000',
+      targetUrls: {
+        frontendUrl: 'http://frontend:3000',
+      },
       closeDelayMs: 0,
       chromium: mockChromium as any,
       logger,
@@ -210,39 +232,69 @@ describe('BrowserController', () => {
     expect(mockPage.close).not.toHaveBeenCalled();
   });
 
-  it('should wait 10 seconds by default before closing pages, contexts, and browser on close()', async () => {
-    vi.useFakeTimers();
-    try {
-      const controller = new BrowserController({
+  it('should close immediately on close() when closeDelayMs is 0 (default)', async () => {
+    const controller = new BrowserController({
+      targetUrls: {
         frontendUrl: 'http://frontend:3000',
-        chromium: mockChromium as any,
-        logger,
-      });
+      },
+      chromium: mockChromium as any,
+      logger,
+    });
 
-      await controller.runCycle();
-      expect(controller.getBrowser()).toBeDefined();
+    await controller.runCycle();
+    expect(controller.getBrowser()).toBeDefined();
 
-      let closed = false;
-      const closePromise = controller.close().then(() => {
-        closed = true;
-      });
+    await controller.close();
 
-      // Before 10s elapsed, browser should still be open
-      await vi.advanceTimersByTimeAsync(9999);
-      expect(closed).toBe(false);
-      expect(mockBrowser.close).not.toHaveBeenCalled();
+    expect(mockPage.close).toHaveBeenCalled();
+    expect(mockContext.close).toHaveBeenCalled();
+    expect(mockBrowser.close).toHaveBeenCalled();
+    expect(controller.getBrowser()).toBeUndefined();
+  });
 
-      // At 10s, close completes
-      await vi.advanceTimersByTimeAsync(1);
-      await closePromise;
+  it('should wait configured closeDelayMs before closing on close()', async () => {
+    const controller = new BrowserController({
+      targetUrls: {
+        frontendUrl: 'http://frontend:3000',
+      },
+      closeDelayMs: 100,
+      chromium: mockChromium as any,
+      logger,
+    });
 
-      expect(closed).toBe(true);
-      expect(mockPage.close).toHaveBeenCalled();
-      expect(mockContext.close).toHaveBeenCalled();
-      expect(mockBrowser.close).toHaveBeenCalled();
-      expect(controller.getBrowser()).toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
+    await controller.runCycle();
+    expect(controller.getBrowser()).toBeDefined();
+
+    const t0 = performance.now();
+    await controller.close();
+    const elapsed = performance.now() - t0;
+
+    expect(elapsed).toBeGreaterThanOrEqual(80);
+    expect(mockPage.close).toHaveBeenCalled();
+    expect(mockContext.close).toHaveBeenCalled();
+    expect(mockBrowser.close).toHaveBeenCalled();
+    expect(controller.getBrowser()).toBeUndefined();
+  });
+
+  it('should skip close delay when skipDelay is true on close()', async () => {
+    const controller = new BrowserController({
+      targetUrls: {
+        frontendUrl: 'http://frontend:3000',
+      },
+      closeDelayMs: 10000,
+      chromium: mockChromium as any,
+      logger,
+    });
+
+    await controller.runCycle();
+    expect(controller.getBrowser()).toBeDefined();
+
+    // Passing skipDelay = true closes immediately without waiting
+    await controller.close(true);
+
+    expect(mockPage.close).toHaveBeenCalled();
+    expect(mockContext.close).toHaveBeenCalled();
+    expect(mockBrowser.close).toHaveBeenCalled();
+    expect(controller.getBrowser()).toBeUndefined();
   });
 });

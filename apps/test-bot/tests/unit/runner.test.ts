@@ -40,8 +40,10 @@ describe('Runner', () => {
 
   it('should initialize with default options', () => {
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       logger,
     });
 
@@ -51,8 +53,10 @@ describe('Runner', () => {
 
   it('should execute iterations in backend mode without calling browser controller', async () => {
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       mode: 'backend',
       iterations: 3,
       concurrency: 1,
@@ -77,8 +81,10 @@ describe('Runner', () => {
 
   it('should execute iterations in frontend mode calling browser controller', async () => {
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       mode: 'frontend',
       iterations: 2,
       concurrency: 1,
@@ -98,13 +104,15 @@ describe('Runner', () => {
     expect(mockBrowserController.launch).toHaveBeenCalledTimes(1);
     expect(mockBrowserController.runCycle).toHaveBeenCalledTimes(2);
     expect(mockApiController.executeAll).not.toHaveBeenCalled();
-    expect(mockBrowserController.close).toHaveBeenCalledTimes(1);
+    expect(mockBrowserController.close).toHaveBeenCalledWith(false);
   });
 
   it('should execute iterations in both mode calling browser and api concurrently', async () => {
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       mode: 'both',
       iterations: 4,
       concurrency: 2,
@@ -124,7 +132,7 @@ describe('Runner', () => {
     expect(mockBrowserController.launch).toHaveBeenCalledTimes(1);
     expect(mockBrowserController.runCycle).toHaveBeenCalledTimes(4);
     expect(mockApiController.executeAll).toHaveBeenCalledTimes(4);
-    expect(mockBrowserController.close).toHaveBeenCalledTimes(1);
+    expect(mockBrowserController.close).toHaveBeenCalledWith(false);
   });
 
   it('should record failure when browser or api cycle fails', async () => {
@@ -143,8 +151,10 @@ describe('Runner', () => {
     });
 
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       mode: 'both',
       iterations: 2,
       concurrency: 1,
@@ -166,7 +176,33 @@ describe('Runner', () => {
     expect(summary.errors[0]).toContain('API: Calc failed: HTTP 500');
   });
 
-  it('should abort immediately when stop() is called', async () => {
+  it('should record failure and latency when execution throws an unhandled exception', async () => {
+    mockApiController.executeAll = vi.fn().mockRejectedValue(new Error('Network disconnected'));
+
+    const runner = new Runner({
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
+      mode: 'backend',
+      iterations: 1,
+      concurrency: 1,
+      delayMs: 0,
+      apiController: mockApiController as ApiController,
+      logger,
+      metrics,
+    });
+
+    const summary = await runner.start();
+
+    expect(summary.total).toBe(1);
+    expect(summary.completed).toBe(0);
+    expect(summary.failed).toBe(1);
+    expect(summary.errors[0]).toContain('Network disconnected');
+    expect(summary.latencies.min).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should abort immediately when stop() is called and pass aborted=true to close', async () => {
     let callCount = 0;
     mockApiController.executeAll = vi.fn().mockImplementation(async () => {
       callCount++;
@@ -174,13 +210,16 @@ describe('Runner', () => {
     });
 
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       mode: 'backend',
       iterations: 10,
       concurrency: 1,
       delayMs: 10,
       apiController: mockApiController as ApiController,
+      browserController: mockBrowserController as BrowserController,
       logger,
       metrics,
     });
@@ -195,12 +234,51 @@ describe('Runner', () => {
 
     expect(runner.isAborted()).toBe(true);
     expect(summary.total).toBeLessThan(10);
+    expect(mockBrowserController.close).toHaveBeenCalledWith(true);
+  });
+
+  it('should pass headless option to browser controller and launcher', async () => {
+    const mockLaunch = vi.fn().mockResolvedValue({
+      newContext: vi.fn().mockResolvedValue({
+        newPage: vi.fn().mockResolvedValue({
+          setDefaultTimeout: vi.fn(),
+          goto: vi.fn().mockResolvedValue(null),
+          click: vi.fn().mockResolvedValue(undefined),
+          fill: vi.fn().mockResolvedValue(undefined),
+          evaluate: vi.fn().mockResolvedValue(undefined),
+          waitForSelector: vi.fn().mockResolvedValue(undefined as any),
+          waitForFunction: vi.fn().mockResolvedValue(undefined as any),
+          $: vi.fn().mockResolvedValue({} as any),
+          close: vi.fn().mockResolvedValue(undefined),
+        }),
+        route: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+      }),
+      close: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const runner = new Runner({
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
+      mode: 'frontend',
+      iterations: 1,
+      headless: false,
+      chromium: { launch: mockLaunch } as any,
+      logger,
+    });
+
+    await runner.start();
+    expect(mockLaunch).toHaveBeenCalledWith({ headless: false });
   });
 
   it('should handle zero iterations without error', async () => {
     const runner = new Runner({
-      frontendUrl: 'http://localhost:3000',
-      backendUrl: 'http://localhost:4000',
+      targetUrls: {
+        frontendUrl: 'http://localhost:3000',
+        backendUrl: 'http://localhost:4000',
+      },
       iterations: 0,
       apiController: mockApiController as ApiController,
       browserController: mockBrowserController as BrowserController,
@@ -215,3 +293,4 @@ describe('Runner', () => {
     expect(summary.failed).toBe(0);
   });
 });
+

@@ -129,10 +129,11 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
 | `--iterations` | `number` | `100` | Total number of test cycles to execute. |
 | `--concurrency` | `number` | `1` | Number of parallel worker threads / browser contexts. |
 | `--delay-ms` | `number` | `50` | Artificial pause between iterations in milliseconds. |
+| `--close-delay-ms` | `number` | `0` | Artificial pause before closing browser contexts upon completion in milliseconds (opt-in for visual inspection). |
 | `--mode` | `enum` | `both` | Execution target: `frontend`, `backend`, or `both`. |
-| `--headless` | `boolean` | `true` (`false` in `dev` mode) | Run browser in headless mode (`false` for visual debugging). |
+| `--headless` | `boolean` | `true` | Run browser in headless mode (`false` for visual debugging). |
 
-**Parameter integration coverage** (`parameters.integration.test.ts`): `iterations` (exact endpoint hit counts, 0 = no-op), `concurrency` (peak in-flight requests, capped by iterations, speedup), `delay-ms` (elapsed time), `mode` (frontend page loads / API hits per mode), `headless` (value passed to `chromium.launch`), and `closeDelayMs` (page-open duration). URL parameters are excluded.
+**Parameter integration coverage** (`parameters.integration.test.ts`): `iterations` (exact endpoint hit counts, 0 = no-op), `concurrency` (peak in-flight requests, capped by iterations, speedup), `delay-ms` (elapsed time), `mode` (frontend page loads / API hits per mode), `headless` (headless browser execution in frontend vs backend mode), and `closeDelayMs` (page-open duration). URL parameters are excluded.
 
 ---
 
@@ -158,14 +159,15 @@ The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). F
      ```
 4. In each test cycle / iteration (reusing the same `Page` for that worker):
    - Navigate to Home (`--frontend-url/`).
-   - Click navigation links to visit service pages (`/calc`, `/timestamp`, `/excuse`, `/dice`).
+   - Click navigation links to visit service pages (`/calc`, `/timestamp`, `/excuse`, `/dice`), returning to Home (`#link-nav-home`) between service pages so navigation selectors remain accessible.
+   - Before triggering service actions, reset/clear the result element text to ensure the check cannot match stale DOM content from a previous cycle.
    - Interact with service controls:
      - **Calculator (`/calc`):** Fills `#calc-input-a`, `#calc-input-b` and clicks `#btn-calc-submit`.
      - **Timestamp (`/timestamp`):** Clicks `#btn-timestamp-fetch`.
      - **Daily Excuse (`/excuse`):** Clicks `#btn-generate-excuse`.
      - **Dice Emulator (`/dice`):** Clicks `#btn-roll-dice`.
    - Await response rendering in DOM (e.g., `#calc-result`, `#timestamp-result`, `#excuse-result`, `#dice-result`).
-5. Wait 10 seconds (`closeDelayMs`, default `10000`ms) upon completion before closing the pages, browser contexts, and browser instance.
+5. Close pages, browser contexts, and browser instance upon completion (or wait `closeDelayMs` if specified, default `0`ms; skipped on SIGINT/abort).
 
 ### 5.2 Backend API Request Flow
 1. In each iteration, issue direct requests to backend service endpoints:

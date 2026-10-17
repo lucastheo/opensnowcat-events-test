@@ -27,6 +27,7 @@ describe('CLI (index.ts)', () => {
       expect(optionNames).toContain('iterations');
       expect(optionNames).toContain('concurrency');
       expect(optionNames).toContain('delayMs');
+      expect(optionNames).toContain('closeDelayMs');
       expect(optionNames).toContain('mode');
       expect(optionNames).toContain('headless');
     });
@@ -36,51 +37,61 @@ describe('CLI (index.ts)', () => {
     it('should parse default options when no arguments provided', () => {
       delete process.env.FRONTEND_URL;
       delete process.env.BACKEND_URL;
+      delete process.env.SIMPLE_COLLECTOR_URL;
+      delete process.env.OPENSNOWCAT_URL;
       delete process.env.ITERATIONS;
       delete process.env.CONCURRENCY;
       delete process.env.DELAY_MS;
+      delete process.env.CLOSE_DELAY_MS;
       delete process.env.MODE;
       delete process.env.HEADLESS;
 
       const opts = parseOptions([]);
 
-      expect(opts.frontendUrl).toBe('http://localhost:3000');
-      expect(opts.backendUrl).toBe('http://localhost:4000');
-      expect(opts.simpleCollectorUrl).toBe('http://localhost:5000');
-      expect(opts.opensnowcatUrl).toBe('http://localhost:8080');
+      expect(opts.targetUrls.frontendUrl).toBe('http://localhost:3000');
+      expect(opts.targetUrls.backendUrl).toBe('http://localhost:4000');
+      expect(opts.targetUrls.simpleCollectorUrl).toBe('http://localhost:5000');
+      expect(opts.targetUrls.opensnowcatUrl).toBe('http://localhost:8080');
       expect(opts.iterations).toBe(100);
       expect(opts.concurrency).toBe(1);
       expect(opts.delayMs).toBe(50);
+      expect(opts.closeDelayMs).toBe(0);
       expect(opts.mode).toBe('both');
       expect(opts.headless).toBe(true);
     });
 
-    it('should default headless to false in development mode', () => {
+    it('should default headless to true regardless of NODE_ENV', () => {
       delete process.env.MODE;
       delete process.env.HEADLESS;
       process.env.NODE_ENV = 'development';
 
       const opts = parseOptions([]);
 
-      expect(opts.headless).toBe(false);
+      expect(opts.headless).toBe(true);
     });
 
     it('should respect environment variables as defaults', () => {
       process.env.FRONTEND_URL = 'http://env-fe:3000';
       process.env.BACKEND_URL = 'http://env-be:4000';
+      process.env.SIMPLE_COLLECTOR_URL = 'http://env-sc:5000';
+      process.env.OPENSNOWCAT_URL = 'http://env-osc:8080';
       process.env.ITERATIONS = '250';
       process.env.CONCURRENCY = '5';
       process.env.DELAY_MS = '20';
+      process.env.CLOSE_DELAY_MS = '2000';
       process.env.MODE = 'frontend';
       process.env.HEADLESS = 'false';
 
       const opts = parseOptions([]);
 
-      expect(opts.frontendUrl).toBe('http://env-fe:3000');
-      expect(opts.backendUrl).toBe('http://env-be:4000');
+      expect(opts.targetUrls.frontendUrl).toBe('http://env-fe:3000');
+      expect(opts.targetUrls.backendUrl).toBe('http://env-be:4000');
+      expect(opts.targetUrls.simpleCollectorUrl).toBe('http://env-sc:5000');
+      expect(opts.targetUrls.opensnowcatUrl).toBe('http://env-osc:8080');
       expect(opts.iterations).toBe(250);
       expect(opts.concurrency).toBe(5);
       expect(opts.delayMs).toBe(20);
+      expect(opts.closeDelayMs).toBe(2000);
       expect(opts.mode).toBe('frontend');
       expect(opts.headless).toBe(false);
     });
@@ -101,19 +112,22 @@ describe('CLI (index.ts)', () => {
         '4',
         '--delay-ms',
         '10',
+        '--close-delay-ms',
+        '500',
         '--mode',
         'backend',
         '--headless',
         'false',
       ]);
 
-      expect(opts.frontendUrl).toBe('http://custom-fe:3000');
-      expect(opts.backendUrl).toBe('http://custom-be:4000');
-      expect(opts.simpleCollectorUrl).toBe('http://custom-sc:5000');
-      expect(opts.opensnowcatUrl).toBe('http://custom-osc:8080');
+      expect(opts.targetUrls.frontendUrl).toBe('http://custom-fe:3000');
+      expect(opts.targetUrls.backendUrl).toBe('http://custom-be:4000');
+      expect(opts.targetUrls.simpleCollectorUrl).toBe('http://custom-sc:5000');
+      expect(opts.targetUrls.opensnowcatUrl).toBe('http://custom-osc:8080');
       expect(opts.iterations).toBe(50);
       expect(opts.concurrency).toBe(4);
       expect(opts.delayMs).toBe(10);
+      expect(opts.closeDelayMs).toBe(500);
       expect(opts.mode).toBe('backend');
       expect(opts.headless).toBe(false);
     });
@@ -145,6 +159,15 @@ describe('CLI (index.ts)', () => {
     it('should reject invalid delay-ms', () => {
       expect(() => parseOptions(['--delay-ms', '-10'])).toThrow(
         /Invalid delay-ms/
+      );
+    });
+
+    it('should reject invalid close-delay-ms', () => {
+      expect(() => parseOptions(['--close-delay-ms', '-10'])).toThrow(
+        /Invalid close-delay-ms/
+      );
+      expect(() => parseOptions(['--close-delay-ms', 'abc'])).toThrow(
+        /Invalid close-delay-ms/
       );
     });
   });

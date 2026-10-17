@@ -104,14 +104,14 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
     <a id="header-nav-timestamp" href="/timestamp">Timestamp</a>
     <a id="header-nav-excuse" href="/excuse">Excuse</a>
     <a id="header-nav-dice" href="/dice">Dice</a>
-    <a id="link-nav-calc" href="/calc" style="display:none;">Calc</a>
-    <a id="link-nav-timestamp" href="/timestamp" style="display:none;">Timestamp</a>
-    <a id="link-nav-excuse" href="/excuse" style="display:none;">Excuse</a>
-    <a id="link-nav-dice" href="/dice" style="display:none;">Dice</a>
   </nav>
 
   <div id="view-home" class="view">
     <h1>Home Page</h1>
+    <a id="link-nav-calc" href="/calc">Open Calculator</a>
+    <a id="link-nav-timestamp" href="/timestamp">Open Timestamp</a>
+    <a id="link-nav-excuse" href="/excuse">Open Excuse</a>
+    <a id="link-nav-dice" href="/dice">Open Dice</a>
   </div>
 
   <div id="view-calc" class="view" style="display: none;">
@@ -160,7 +160,7 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
 
     renderRoute(window.location.pathname);
 
-    document.querySelectorAll('nav a').forEach(function(a) {
+    document.querySelectorAll('nav a, #view-home a').forEach(function(a) {
       a.addEventListener('click', function(e) {
         e.preventDefault();
         var href = a.getAttribute('href');
@@ -263,8 +263,10 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
     const iterations = 3;
 
     const runner = new Runner({
-      frontendUrl,
-      backendUrl,
+      targetUrls: {
+        frontendUrl,
+        backendUrl,
+      },
       mode: 'backend',
       iterations,
       concurrency: 1,
@@ -299,8 +301,10 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
     const iterations = 2;
 
     const runner = new Runner({
-      frontendUrl,
-      backendUrl,
+      targetUrls: {
+        frontendUrl,
+        backendUrl,
+      },
       mode: 'frontend',
       iterations,
       concurrency: 1,
@@ -336,8 +340,10 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
     const concurrency = 2;
 
     const runner = new Runner({
-      frontendUrl,
-      backendUrl,
+      targetUrls: {
+        frontendUrl,
+        backendUrl,
+      },
       mode: 'both',
       iterations,
       concurrency,
@@ -374,8 +380,10 @@ describe('Test Bot End-to-End Integration Tests', { timeout: 30000 }, () => {
     const logger = new Logger({ silent: true });
 
     const runner = new Runner({
-      frontendUrl,
-      backendUrl,
+      targetUrls: {
+        frontendUrl,
+        backendUrl,
+      },
       mode: 'backend',
       iterations: 20,
       concurrency: 1,

@@ -85,9 +85,3 @@ export class Logger {
 }
 
 export const logger = new Logger();
-
-export const debug = logger.debug;
-export const info = logger.info;
-export const warn = logger.warn;
-export const error = logger.error;
-export const logProgress = logger.logProgress;

@@ -51,6 +51,12 @@ export function createCli(): Command {
       parseInt(process.env.DELAY_MS || '50', 10)
     )
     .option(
+      '--close-delay-ms <number>',
+      'Pause before closing browser on completion in milliseconds',
+      (val) => parseInt(val, 10),
+      parseInt(process.env.CLOSE_DELAY_MS || '0', 10)
+    )
+    .option(
       '--mode <mode>',
       'Execution target: frontend, backend, or both',
       process.env.MODE || 'both'
@@ -59,9 +65,7 @@ export function createCli(): Command {
       '--headless <boolean>',
       'Run browser in headless mode',
       (val) => val !== 'false',
-      process.env.HEADLESS !== undefined
-        ? process.env.HEADLESS !== 'false'
-        : process.env.NODE_ENV !== 'development'
+      process.env.HEADLESS !== undefined ? process.env.HEADLESS !== 'false' : true
     );
 
   return program;
@@ -88,19 +92,26 @@ export function parseOptions(argv: string[] = process.argv): RunnerOptions {
     throw new Error(`Invalid delay-ms: "${opts.delayMs}". Must be a non-negative number.`);
   }
 
+  if (isNaN(opts.closeDelayMs) || opts.closeDelayMs < 0) {
+    throw new Error(`Invalid close-delay-ms: "${opts.closeDelayMs}". Must be a non-negative number.`);
+  }
+
   const mode = opts.mode as ExecutionMode;
   if (!['frontend', 'backend', 'both'].includes(mode)) {
     throw new Error(`Invalid mode: "${opts.mode}". Must be "frontend", "backend", or "both".`);
   }
 
   return {
-    frontendUrl: opts.frontendUrl,
-    backendUrl: opts.backendUrl,
-    simpleCollectorUrl: opts.simpleCollectorUrl,
-    opensnowcatUrl: opts.opensnowcatUrl,
+    targetUrls: {
+      frontendUrl: opts.frontendUrl,
+      backendUrl: opts.backendUrl,
+      simpleCollectorUrl: opts.simpleCollectorUrl,
+      opensnowcatUrl: opts.opensnowcatUrl,
+    },
     iterations: opts.iterations,
     concurrency: opts.concurrency,
     delayMs: opts.delayMs,
+    closeDelayMs: opts.closeDelayMs,
     mode,
     headless: opts.headless,
   };

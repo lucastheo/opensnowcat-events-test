@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Logger, logger, debug, info, warn, error, logProgress } from '../../src/utils/logger.js';
+import { Logger, logger } from '../../src/utils/logger.js';
 
 describe('Logger', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
@@ -93,25 +93,5 @@ describe('Logger', () => {
     expect(l.getLevel()).toBe('info');
     l.info('logged');
     expect(logSpy).toHaveBeenCalledWith('[INFO] logged');
-  });
-
-  it('should export standalone convenience functions bound to default logger', () => {
-    logger.setLevel('info');
-    logger.setSilent(false);
-
-    info('standalone info');
-    expect(logSpy).toHaveBeenCalledWith('[INFO] standalone info');
-
-    warn('standalone warn');
-    expect(warnSpy).toHaveBeenCalledWith('[WARN] standalone warn');
-
-    error('standalone error');
-    expect(errorSpy).toHaveBeenCalledWith('[ERROR] standalone error');
-
-    debug('standalone debug');
-    expect(debugSpy).not.toHaveBeenCalled();
-
-    logProgress(2, 4);
-    expect(logSpy).toHaveBeenCalledWith('[PROGRESS] [██████████░░░░░░░░░░] 50.0% (2/4)');
   });
 });
