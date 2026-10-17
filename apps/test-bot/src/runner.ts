@@ -51,7 +51,7 @@ export class Runner {
     this.iterations = options.iterations ?? 100;
     this.concurrency = Math.max(1, options.concurrency ?? 1);
     this.delayMs = Math.max(0, options.delayMs ?? 50);
-    this.closeDelayMs = options.closeDelayMs;
+    this.closeDelayMs = options.closeDelayMs ?? 10000;
     this.mode = options.mode ?? 'both';
     this.headless = options.headless ?? true;
     this.logger = options.logger ?? defaultLogger;
