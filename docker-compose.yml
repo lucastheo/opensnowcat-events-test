@@ -1,5 +1,27 @@
 services:
   # ---------------------------------------------------------------------------
+  # 0. OpenSnowcat Collector (Local Stream Collector on Port 8080)
+  # ---------------------------------------------------------------------------
+  opensnowcat:
+    image: ghcr.io/opensnowcat/opensnowcat-collector-stdout:latest
+    container_name: opensnowcat
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./test/config.hocon:/opensnowcat/config.hocon:ro
+    command: ["--config", "/opensnowcat/config.hocon"]
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - snowcat-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
   # 1. Simple Collector (Ground-Truth CSV Logger)
   # ---------------------------------------------------------------------------
   simple-collector:

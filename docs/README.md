@@ -156,6 +156,7 @@ opensnowcat-events-test/
 │   └── test-bot/                      # Playwright Automated Runner (CLI / Port 6000)
 │
 ├── data/                              # Host-mounted volume directory (stores events.csv)
+├── test/                              # Local OpenSnowcat Collector (Docker + Node emulator on :8080)
 ├── docker-compose.yml                 # Multi-service Docker Compose orchestration
 └── package.json                       # Root monorepo scripts & orchestration commands
 ```
@@ -178,13 +179,16 @@ npm run build
 # Run all unit and integration tests across all 4 applications
 npm test
 
-# Start Simple Collector (5000), Backend Producer (4000), and Frontend Producer (3000) locally
+# Start only the local OpenSnowcat Collector on port 8080
+npm run snowcat
+
+# Start OpenSnowcat (:8080), Simple Collector (:5000), Backend Producer (:4000), and Frontend Producer (:3000) locally
 npm run dev
 
 # Execute Test Bot against running local services
 npm run bot -- --iterations 10 --concurrency 2
 
-# Start all 3 services in background, wait for health checks, and run Test Bot E2E locally
+# Start all 4 services (including OpenSnowcat :8080) in background, wait for health checks, and run Test Bot E2E locally
 npm run e2e -- --iterations 10 --concurrency 2
 
 # Start all containerized services via Docker Compose
