@@ -12,8 +12,9 @@
     "dev:collector": "npm --prefix apps/simple-collector run dev",
     "dev:backend": "npm --prefix apps/backend-producer run dev",
     "dev:frontend": "npm --prefix apps/frontend-producer run dev",
-    "bot": "npm --prefix apps/test-bot run start",
-    "bot:dev": "npm --prefix apps/test-bot run dev",
+    "bot": "node --no-warnings apps/test-bot/dist/index.js",
+    "bot:dev": "HEADLESS=false apps/test-bot/node_modules/.bin/tsx apps/test-bot/src/index.ts",
+    "e2e": "bash -c 'trap \"kill $P1 $P2 $P3 2>/dev/null\" EXIT; npm --prefix apps/simple-collector run dev >/dev/null 2>&1 & P1=$!; npm --prefix apps/backend-producer run dev >/dev/null 2>&1 & P2=$!; npm --prefix apps/frontend-producer run dev >/dev/null 2>&1 & P3=$!; for i in $(seq 1 30); do curl -sf http://localhost:5000/health >/dev/null && curl -sf http://localhost:4000/api/health >/dev/null && curl -sf http://localhost:3000/ >/dev/null && break; sleep 1; done; node --no-warnings apps/test-bot/dist/index.js \"$@\"' --",
     "up": "docker compose up --build",
     "e2e:docker": "docker compose --profile full-test up --build --abort-on-container-exit",
     "down": "docker compose down"
