@@ -182,7 +182,10 @@ npm test
 npm run dev
 
 # Execute Test Bot against running local services
-npm run bot
+npm run bot -- --iterations 10 --concurrency 2
+
+# Start all 3 services in background, wait for health checks, and run Test Bot E2E locally
+npm run e2e -- --iterations 10 --concurrency 2
 
 # Start all containerized services via Docker Compose
 npm run up
