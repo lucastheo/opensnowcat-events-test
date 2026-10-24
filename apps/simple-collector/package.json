@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node --no-warnings dist/index.js",
-    "dev": "node --watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
