@@ -247,7 +247,7 @@ apps/simple-collector/
 ├── package-lock.json            # Lockfile (required for Docker build npm ci)
 ├── Dockerfile                   # Multi-stage production container build
 ├── .env.example                 # Sample environment variables
-├── .gitignore                   # Ignore node_modules, dist
+├── .gitignore                   # Ignore node_modules, dist, data
 ├── src/
 │   ├── index.ts                 # Server startup & CLI entrypoint
 │   ├── app.ts                   # Fastify app factory (CORS & routes setup)
@@ -327,6 +327,9 @@ npm run test:watch
 
 # 4. Compile TypeScript project to dist/
 npm run build
+
+# 5. Start development server in watch mode (tsx watch)
+npm run dev
 ```
 
 ---
