@@ -1,0 +1,21 @@
+{
+  "name": "opensnowcat-events-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm --prefix apps/simple-collector run build && npm --prefix apps/backend-producer run build && npm --prefix apps/frontend-producer run build && npm --prefix apps/test-bot run build",
+    "type-check": "npm --prefix apps/simple-collector run type-check && npm --prefix apps/backend-producer run type-check && npm --prefix apps/frontend-producer run type-check && npm --prefix apps/test-bot run type-check",
+    "test": "npm --prefix apps/simple-collector test && npm --prefix apps/backend-producer test && npm --prefix apps/frontend-producer test && npm --prefix apps/test-bot test",
+    "install:all": "npm --prefix apps/simple-collector install && npm --prefix apps/backend-producer install && npm --prefix apps/frontend-producer install && npm --prefix apps/test-bot install",
+    "dev": "trap 'kill 0' EXIT; npm --prefix apps/simple-collector run dev & npm --prefix apps/backend-producer run dev & npm --prefix apps/frontend-producer run dev & wait",
+    "dev:collector": "npm --prefix apps/simple-collector run dev",
+    "dev:backend": "npm --prefix apps/backend-producer run dev",
+    "dev:frontend": "npm --prefix apps/frontend-producer run dev",
+    "bot": "npm --prefix apps/test-bot run start",
+    "bot:dev": "npm --prefix apps/test-bot run dev",
+    "up": "docker compose up --build",
+    "e2e:docker": "docker compose --profile full-test up --build --abort-on-container-exit",
+    "down": "docker compose down"
+  }
+}
