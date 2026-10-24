@@ -87,6 +87,12 @@ Run `npm run type-check` inside each respective application directory:
   npm run type-check
   ```
 
+- **Test Bot (`apps/test-bot`):**
+  ```bash
+  cd apps/test-bot
+  npm run type-check
+  ```
+
 ### What It Validates
 
 The static analysis script executes `tsc --noEmit`, which performs full compiler validation without emitting build artifacts:

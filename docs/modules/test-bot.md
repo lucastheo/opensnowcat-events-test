@@ -77,9 +77,17 @@ apps/test-bot/
 │       └── metrics.ts               # Iteration latencies & success counters
 └── tests/
     ├── unit/
-    │   └── runner.test.ts           # 1:1 Unit tests for runner and parameter validation
+    │   ├── api.controller.test.ts   # 1:1 Unit tests for backend API requester
+    │   ├── browser.controller.test.ts # 1:1 Unit tests for Playwright browser driver
+    │   ├── index.test.ts            # 1:1 Unit tests for CLI entrypoint & argument parsing
+    │   ├── logger.test.ts           # 1:1 Unit tests for logger and progress reporting
+    │   ├── metrics.test.ts          # 1:1 Unit tests for metrics tracking and summarization
+    │   └── runner.test.ts           # 1:1 Unit tests for runner and worker pool orchestration
     └── integration/
-        └── bot.integration.test.ts  # End-to-end bot test with mock servers
+        ├── bot.integration.test.ts  # End-to-end bot test with mock servers
+        ├── parameters.integration.test.ts # One behavioral test group per non-URL parameter
+        └── helpers/
+            └── mock-servers.ts      # Shared mock backend/frontend with hit, page-load and in-flight counters
 ```
 
 ### 3.2 Dockerfile Specification (`apps/test-bot/Dockerfile`)
@@ -109,19 +117,7 @@ CMD ["npx", "tsx", "src/index.ts"]
 
 ## 4. CLI Interface & Parameters
 
-The Bot will be executed via a CLI with the following flags:
-
-```bash
-# Example command
-opensnowcat-bot \
-  --frontend-url http://localhost:3000 \
-  --backend-url http://localhost:4000 \
-  --iterations 500 \
-  --concurrency 5 \
-  --delay-ms 100 \
-  --mode both \
-  --headless true
-```
+The Bot is executed via the `opensnowcat-bot` CLI entrypoint (`src/index.ts`). For execution examples across Docker Compose and CLI environments, see [Docker Compose Execution Profiles (`docker-compose.md#63-on-demand-bot-run-with-custom-parameters`)](docker-compose.md#63-on-demand-bot-run-with-custom-parameters) and [Master Overview (`../README.md#4-multi-service-orchestration-docker-compose`)](../README.md#4-multi-service-orchestration-docker-compose).
 
 ### Options:
 | Flag | Type | Default | Description |
@@ -133,8 +129,11 @@ opensnowcat-bot \
 | `--iterations` | `number` | `100` | Total number of test cycles to execute. |
 | `--concurrency` | `number` | `1` | Number of parallel worker threads / browser contexts. |
 | `--delay-ms` | `number` | `50` | Artificial pause between iterations in milliseconds. |
+| `--close-delay-ms` | `number` | `0` | Artificial pause before closing browser contexts upon completion in milliseconds (opt-in for visual inspection). |
 | `--mode` | `enum` | `both` | Execution target: `frontend`, `backend`, or `both`. |
 | `--headless` | `boolean` | `true` | Run browser in headless mode (`false` for visual debugging). |
+
+**Parameter integration coverage** (`parameters.integration.test.ts`): `iterations` (exact endpoint hit counts, 0 = no-op), `concurrency` (peak in-flight requests, capped by iterations, speedup), `delay-ms` (elapsed time), `mode` (frontend page loads / API hits per mode), `headless` (headless browser execution in frontend vs backend mode), and `closeDelayMs` (page-open duration). URL parameters are excluded.
 
 ---
 
@@ -142,7 +141,7 @@ opensnowcat-bot \
 
 ### 5.1 Frontend Interaction Flow (Playwright)
 1. Initialize browser instance (Chromium).
-2. Create an isolated `BrowserContext` and `Page`.
+2. Create an isolated `BrowserContext` and a reusable `Page` per worker.
 3. **Container Network URL Rewriting (`context.route`):**
    - The Frontend application bundle is built with browser-facing URLs (`http://localhost:4000`, `http://localhost:5000`, etc.) suitable for external client browsers.
    - When Playwright runs inside the `test-bot` container on the shared bridge network (`snowcat-net`), API and collector requests to `localhost:*` executed by the browser page target the `test-bot` container itself and fail unless host networking is used or requests are rewritten.
@@ -158,16 +157,17 @@ opensnowcat-bot \
        route.continue({ url: route.request().url().replace('http://localhost:5000', target) });
      });
      ```
-4. In each test cycle / iteration:
+4. In each test cycle / iteration (reusing the same `Page` for that worker):
    - Navigate to Home (`--frontend-url/`).
-   - Click navigation links to visit service pages (`/calc`, `/timestamp`, `/excuse`, `/dice`).
+   - Click navigation links to visit service pages (`/calc`, `/timestamp`, `/excuse`, `/dice`), returning to Home (`#link-nav-home`) between service pages so navigation selectors remain accessible.
+   - Before triggering service actions, reset/clear the result element text to ensure the check cannot match stale DOM content from a previous cycle.
    - Interact with service controls:
      - **Calculator (`/calc`):** Fills `#calc-input-a`, `#calc-input-b` and clicks `#btn-calc-submit`.
      - **Timestamp (`/timestamp`):** Clicks `#btn-timestamp-fetch`.
      - **Daily Excuse (`/excuse`):** Clicks `#btn-generate-excuse`.
      - **Dice Emulator (`/dice`):** Clicks `#btn-roll-dice`.
    - Await response rendering in DOM (e.g., `#calc-result`, `#timestamp-result`, `#excuse-result`, `#dice-result`).
-5. Close browser context upon completion.
+5. Close pages, browser contexts, and browser instance upon completion (or wait `closeDelayMs` if specified, default `0`ms; skipped on SIGINT/abort).
 
 ### 5.2 Backend API Request Flow
 1. In each iteration, issue direct requests to backend service endpoints:
@@ -186,6 +186,20 @@ opensnowcat-bot \
 
 ## 6. Verification & Test Plan
 
-1. **Standalone Test:** Run against a mock frontend and mock backend to verify correct click simulation and HTTP request dispatch.
+1. **Standalone Test:** Run against a mock frontend and mock backend to verify correct click simulation and HTTP request dispatch via `tests/integration/bot.integration.test.ts`.
 2. **Headful Visual Test:** Run with `--headless false` and watch the browser window interact with the frontend UI.
 3. **Pacing / Load Test:** Verify rate limiting (`--delay-ms`) and concurrency scaling (`--concurrency 10`).
+
+### Test Execution Commands:
+
+```bash
+# Run all unit and integration tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run end-to-end integration tests only
+npm run test:integration
+```
+
