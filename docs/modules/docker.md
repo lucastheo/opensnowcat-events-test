@@ -1,20 +1,20 @@
 # Docker & Container Standards
 
 ## 1. Overview
-Each application in the `apps/` directory maintains its own isolated `Dockerfile` tailored to its runtime requirements. Multi-service orchestration is handled by the root `docker-compose.yml`, documented in [docs/README.md](../README.md#6-multi-service-docker-orchestration-docker-composeyml).
+Each application in the `apps/` directory maintains its own isolated `Dockerfile` tailored to its runtime requirements. Multi-service orchestration is handled by the root `docker-compose.yml`, documented in [docker-compose.md](docker-compose.md).
 
 ---
 
 ## 2. Service Dockerfiles Reference
 
-The Dockerfile for each service is specified directly in its referent module documentation:
+Each `Dockerfile` in `apps/*/` is the source of truth for its container build. Module docs describe the build in prose and link to the file instead of duplicating it:
 
-| Service | Runtime & Base Image | Specification Link |
+| Service | Runtime & Base Image | Dockerfile |
 |---|---|---|
-| **Simple Collector** | Fastify HTTP audit service (`node:26-alpine`) | [`apps/simple-collector/Dockerfile`](simple-collector.md#77-dockerfile-specification-appssimple-collectordockerfile) |
-| **Backend Producer** | Next.js 15+ standalone API service (`node:26-alpine`) | [`apps/backend-producer/Dockerfile`](backend-producer.md#73-dockerfile-specification-appsbackend-producerdockerfile) |
-| **Frontend Producer** | React 19 + Vite served via Nginx (`nginx:alpine`) | [`apps/frontend-producer/Dockerfile`](frontend-producer.md#32-dockerfile-specification-appsfrontend-producerdockerfile) |
-| **Test Bot** | Playwright headless browser runner (`mcr.microsoft.com/playwright`) | [`apps/test-bot/Dockerfile`](test-bot.md#32-dockerfile-specification-appstest-botdockerfile) |
+| **Simple Collector** | Fastify HTTP audit service (`node:26-alpine`) | [`apps/simple-collector/Dockerfile`](../../apps/simple-collector/Dockerfile) |
+| **Backend Producer** | Next.js 15+ standalone API service (`node:26-alpine`) | [`apps/backend-producer/Dockerfile`](../../apps/backend-producer/Dockerfile) |
+| **Frontend Producer** | React 19 + Vite served via Nginx (`nginx:alpine`) | [`apps/frontend-producer/Dockerfile`](../../apps/frontend-producer/Dockerfile) |
+| **Test Bot** | Playwright headless browser runner (`mcr.microsoft.com/playwright`) | [`apps/test-bot/Dockerfile`](../../apps/test-bot/Dockerfile) |
 
 ---
 

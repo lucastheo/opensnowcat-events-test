@@ -1,0 +1,138 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 0. OpenSnowcat Collector (Local Stream Collector on Port 8080)
+  # ---------------------------------------------------------------------------
+  opensnowcat:
+    image: ghcr.io/opensnowcat/opensnowcat-collector-stdout:latest
+    container_name: opensnowcat
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./test/config.hocon:/opensnowcat/config.hocon:ro
+    command: ["--config", "/opensnowcat/config.hocon"]
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - snowcat-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # 1. Simple Collector (Ground-Truth CSV Logger)
+  # ---------------------------------------------------------------------------
+  simple-collector:
+    build:
+      context: ./apps/simple-collector
+      dockerfile: Dockerfile
+    container_name: simple-collector
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - HOST=0.0.0.0
+      - CSV_FILE_PATH=/app/data/events.csv
+      - CORS_ORIGIN=*
+    volumes:
+      # Mounts local ./data folder so events.csv persists directly on the host
+      - ./data:/app/data
+    networks:
+      - snowcat-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  # ---------------------------------------------------------------------------
+  # 2. Backend Producer (Next.js 15+ API Service)
+  # ---------------------------------------------------------------------------
+  backend-producer:
+    build:
+      context: ./apps/backend-producer
+      dockerfile: Dockerfile
+    container_name: backend-producer
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - CORS_ORIGIN=*
+      - OPENSNOWCAT_COLLECTOR_URL=http://opensnowcat:8080
+      - SIMPLE_COLLECTOR_URL=http://simple-collector:5000
+    depends_on:
+      simple-collector:
+        condition: service_healthy
+    networks:
+      - snowcat-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # 3. Frontend Producer (React 19 + Vite Web Application)
+  # ---------------------------------------------------------------------------
+  frontend-producer:
+    build:
+      context: ./apps/frontend-producer
+      dockerfile: Dockerfile
+      args:
+        - VITE_BACKEND_URL=http://localhost:4000
+        - VITE_SIMPLE_COLLECTOR_URL=http://localhost:5000
+        - VITE_OPENSNOWCAT_URL=http://localhost:8080
+    container_name: frontend-producer
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend-producer:
+        condition: service_healthy
+      simple-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - snowcat-net
+
+  # ---------------------------------------------------------------------------
+  # 4. Test Bot (Automated Orchestration Runner)
+  # ---------------------------------------------------------------------------
+  test-bot:
+    build:
+      context: ./apps/test-bot
+      dockerfile: Dockerfile
+    container_name: test-bot
+    environment:
+      - FRONTEND_URL=http://frontend-producer:3000
+      - BACKEND_URL=http://backend-producer:4000
+      - SIMPLE_COLLECTOR_URL=http://simple-collector:5000
+      - OPENSNOWCAT_URL=http://localhost:8080
+      - ITERATIONS=100
+      - CONCURRENCY=2
+      - DELAY_MS=50
+      - MODE=both
+      - HEADLESS=true
+    depends_on:
+      frontend-producer:
+        condition: service_healthy
+      backend-producer:
+        condition: service_healthy
+      simple-collector:
+        condition: service_healthy
+    networks:
+      - snowcat-net
+    profiles:
+      - full-test
+      - bot
+
+networks:
+  snowcat-net:
+    driver: bridge

@@ -1,0 +1,60 @@
+collector {
+  interface = "0.0.0.0"
+  port = 8080
+
+  p3p {
+    policyRef = "/w3c/p3p.xml"
+    cp = "NOI DSP COR NID PSA OUR IND COM NAV STA"
+  }
+
+  cookie {
+    enabled = true
+    name = "sp"
+    expiration = "365 days"
+    secure = false
+    httpOnly = false
+    sameSite = "Lax"
+  }
+
+  doNotTrackCookie {
+    enabled = false
+    name = "dnt"
+    value = "true"
+  }
+
+  cookieBounce {
+    enabled = false
+    name = "n3pc"
+    fallbackNetworkUserId = "00000000-0000-4000-A000-000000000000"
+  }
+
+  redirectMacro {
+    enabled = false
+  }
+
+  rootResponse {
+    enabled = true
+    statusCode = 200
+    body = "ok"
+  }
+
+  cors {
+    accessControlMaxAge = 5 seconds
+  }
+
+  streams {
+    good = "good"
+    bad = "bad"
+    useIpAddressAsPartitionKey = false
+
+    sink {
+      enabled = "stdout"
+    }
+
+    buffer {
+      byteLimit = 100000
+      recordLimit = 40
+      timeLimit = 1000
+    }
+  }
+}

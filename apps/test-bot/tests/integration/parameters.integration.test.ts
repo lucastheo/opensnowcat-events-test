@@ -97,7 +97,7 @@ describe('Test Bot parameter integration tests', { timeout: 60000 }, () => {
 
       expect(serial).toBeGreaterThanOrEqual(400);
       expect(parallel).toBeLessThan(serial);
-    });
+    }, 30000);
   });
 
   describe('--delay-ms', () => {

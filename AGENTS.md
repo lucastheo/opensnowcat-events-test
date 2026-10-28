@@ -38,6 +38,6 @@ Applications live in [`apps/`](apps/):
 3. **Backend 3-Tier Layering:** Controller (Zod DTOs) $\rightarrow$ Business (domain logic, `event_id`, timestamps) $\rightarrow$ External (HTTP clients). Controllers never call External. See [`backend-producer.md`](docs/modules/backend-producer.md#2-layered-architecture--dependency-rules).
 4. **Dual Emission:** Every event sends tracking to OpenSnowcat (`/tp2`) and audit ping to Simple Collector (`POST /collect`).
 5. **Simple Collector Persistence:** FIFO Promise Queue for sequential, append-only writes to `CSV_FILE_PATH`. See [`simple-collector.md`](docs/modules/simple-collector.md#2-architecture--sequential-append-flow).
-6. **Dockerfiles Single Source of Truth:** Dockerfile for each app is defined only in its referent module spec under `docs/modules/`.
+6. **Dockerfiles Source of Truth:** `apps/<app>/Dockerfile` is the source of truth for each app's container build. Module specs describe it in prose and link to it; never paste the full Dockerfile into docs.
 7. **Testing:** 1:1 unit tests for every source file. Integration tests mock **only** external network services.
 8. **Documentation Updates:** Every code, architecture, or configuration change must update the corresponding specifications in [`docs/`](docs/). Never allow documentation drift; specs must remain accurate and synchronized with the codebase.
