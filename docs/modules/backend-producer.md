@@ -222,7 +222,7 @@ The Business Layer encapsulates all business rules, domain entities, tracking me
 
 - **Business Services ([`src/business/services/`](../../apps/backend-producer/src/business/services/)):**
   - [`calc.service.ts`](../../apps/backend-producer/src/business/services/calc.service.ts): Executes arithmetic operations (`+`, `-`, `*`, `/`), enforces division by zero protection, and triggers dual tracking.
-  - [`timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts): Generates ISO-8601 timestamps and localized time representations across timezones, triggering dual tracking.
+  - [`timestamp.service.ts`](../../apps/backend-producer/src/business/services/timestamp.service.ts): Generates ISO-8601 timestamps and a `formatted_local` string (`DD/MM/YYYY, HH:mm:ss`) built from UTC getters, so it is always rendered in UTC regardless of the validated `timezone` (which is echoed back unchanged), triggering dual tracking.
   - [`excuse.service.ts`](../../apps/backend-producer/src/business/services/excuse.service.ts): Randomly selects excuse entities from the domain pool and triggers dual tracking.
   - [`dice.service.ts`](../../apps/backend-producer/src/business/services/dice.service.ts): Rolls polyhedral dice, aggregates totals, and triggers dual tracking.
   - [`batch.service.ts`](../../apps/backend-producer/src/business/services/batch.service.ts): Processes bulk events in sequential chunks of 5 (`CHUNK_SIZE = 5`) using `Promise.all` per chunk. This chunked execution pattern prevents socket exhaustion (never exceeding 10 concurrent outgoing sockets for dual emission — 5 to OpenSnowcat and 5 to Simple Collector) and prevents overwhelming downstream consumers like `simple-collector`'s FIFO Promise CSV write queue or OpenSnowcat.
@@ -310,7 +310,7 @@ The Frontend application (running on port 3000 in browser) delegates calculation
   ```json
   {
     "timestamp_iso": "2026-10-11T14:30:00.123Z",
-    "formatted_local": "11/10/2026, 11:30:00",
+    "formatted_local": "11/10/2026, 14:30:00",
     "timezone": "America/Sao_Paulo"
   }
   ```
@@ -412,34 +412,9 @@ See [`package.json`](../../apps/backend-producer/package.json) for scripts and d
 | `OPENSNOWCAT_COLLECTOR_URL` | `http://localhost:8080` | Target OpenSnowcat Stream Collector endpoint. |
 | `SIMPLE_COLLECTOR_URL` | `http://localhost:5000` | Simple Collector audit service endpoint. |
 
-### 7.3 Dockerfile Specification (`apps/backend-producer/Dockerfile`)
+### 7.3 Containerization
 
-```dockerfile
-FROM node:26-alpine AS builder
-WORKDIR /app
-COPY package*.json tsconfig.json next.config.ts ./
-RUN npm ci
-COPY src ./src
-RUN npm run build
-
-FROM node:26-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=4000
-ENV HOSTNAME="0.0.0.0"
-
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-USER node
-EXPOSE 4000
-
-HEALTHCHECK --interval=5s --timeout=3s --retries=5 --start-period=5s \
-  CMD wget -qO- http://localhost:4000/api/health || exit 1
-
-CMD ["node", "server.js"]
-```
+The multi-stage build (`node:26-alpine`, Next.js `standalone` output, runtime as `USER node` on port 4000 with an `/api/health` healthcheck) is defined in [`Dockerfile`](../../apps/backend-producer/Dockerfile), which is the source of truth.
 
 ---
 
