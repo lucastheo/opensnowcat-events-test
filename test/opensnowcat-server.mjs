@@ -13,6 +13,21 @@ import http from 'node:http';
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
+const MAX_BODY_BYTES = 1024 * 1024;
+
+const ROUTES = {
+  HEALTH: '/health',
+  ROOT: '/',
+  STATS: '/stats',
+  RESET: '/reset',
+  TP2: '/com.snowplowanalytics.snowplow/tp2',
+  PIXEL: '/i',
+};
+
+const APP_IDS = {
+  FRONTEND: 'frontend-producer',
+  BACKEND: 'backend-producer',
+};
 
 const receivedEvents = [];
 
@@ -36,20 +51,20 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
   // 1. Healthcheck endpoint
-  if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+  if (req.method === 'GET' && (url.pathname === ROUTES.HEALTH || url.pathname === ROUTES.ROOT)) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', service: 'opensnowcat-collector', port: PORT }));
     return;
   }
 
   // 2. Stats & Inspection endpoint
-  if (req.method === 'GET' && url.pathname === '/stats') {
+  if (req.method === 'GET' && url.pathname === ROUTES.STATS) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
         total_received: receivedEvents.length,
-        frontend_events: receivedEvents.filter((e) => e.aid === 'frontend-producer').length,
-        backend_events: receivedEvents.filter((e) => e.aid === 'backend-producer').length,
+        frontend_events: receivedEvents.filter((e) => e.aid === APP_IDS.FRONTEND).length,
+        backend_events: receivedEvents.filter((e) => e.aid === APP_IDS.BACKEND).length,
         events: receivedEvents,
       })
     );
@@ -57,7 +72,7 @@ const server = http.createServer((req, res) => {
   }
 
   // 3. Reset endpoint
-  if (req.method === 'POST' && url.pathname === '/reset') {
+  if (req.method === 'POST' && url.pathname === ROUTES.RESET) {
     receivedEvents.length = 0;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'reset', total_received: 0 }));
@@ -65,16 +80,31 @@ const server = http.createServer((req, res) => {
   }
 
   // 4. OpenSnowcat / Snowplow POST collector endpoint (/com.snowplowanalytics.snowplow/tp2)
-  if (req.method === 'POST' && url.pathname === '/com.snowplowanalytics.snowplow/tp2') {
+  if (req.method === 'POST' && url.pathname === ROUTES.TP2) {
     let body = '';
+    let bodyBytes = 0;
+    let aborted = false;
+
     req.on('data', (chunk) => {
+      if (aborted) return;
+      bodyBytes += chunk.length;
+      if (bodyBytes > MAX_BODY_BYTES) {
+        aborted = true;
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+        req.destroy();
+        return;
+      }
       body += chunk;
     });
+
     req.on('end', () => {
+      if (aborted) return;
       try {
         const parsed = JSON.parse(body);
         const rows = Array.isArray(parsed?.data) ? parsed.data : [];
         for (const item of rows) {
+          if (!item || typeof item !== 'object') continue;
           const entry = {
             eid: item.eid || null,
             e: item.e || null,
@@ -90,7 +120,7 @@ const server = http.createServer((req, res) => {
         }
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('ok');
-      } catch (err) {
+      } catch {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid collector payload' }));
       }
@@ -99,7 +129,7 @@ const server = http.createServer((req, res) => {
   }
 
   // 5. OpenSnowcat / Snowplow GET pixel endpoint (/i)
-  if (req.method === 'GET' && url.pathname === '/i') {
+  if (req.method === 'GET' && url.pathname === ROUTES.PIXEL) {
     const entry = {
       eid: url.searchParams.get('eid'),
       e: url.searchParams.get('e'),
