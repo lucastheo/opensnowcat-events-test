@@ -64,6 +64,8 @@ services:
       - OPENSNOWCAT_COLLECTOR_URL=http://opensnowcat:8080
       - SIMPLE_COLLECTOR_URL=http://simple-collector:5000
     depends_on:
+      opensnowcat:
+        condition: service_healthy
       simple-collector:
         condition: service_healthy
     networks:
@@ -114,13 +116,15 @@ services:
       - FRONTEND_URL=http://frontend-producer:3000
       - BACKEND_URL=http://backend-producer:4000
       - SIMPLE_COLLECTOR_URL=http://simple-collector:5000
-      - OPENSNOWCAT_URL=http://localhost:8080
+      - OPENSNOWCAT_URL=http://opensnowcat:8080
       - ITERATIONS=100
       - CONCURRENCY=2
       - DELAY_MS=50
       - MODE=both
       - HEADLESS=true
     depends_on:
+      opensnowcat:
+        condition: service_healthy
       frontend-producer:
         condition: service_healthy
       backend-producer:
