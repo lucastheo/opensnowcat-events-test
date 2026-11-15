@@ -13,7 +13,7 @@
     "dev": "HEADLESS=false tsx src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=4",
     "test:unit": "vitest run tests/unit/",
     "test:integration": "vitest run tests/integration/",
     "test:watch": "vitest"
