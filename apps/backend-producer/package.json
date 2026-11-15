@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start -p 4000",
     "type-check": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=4",
     "test:unit": "vitest run src/",
     "test:integration": "vitest run tests/integration/",
     "test:watch": "vitest",

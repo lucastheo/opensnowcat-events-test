@@ -156,14 +156,47 @@ opensnowcat-events-test/
 │   └── test-bot/                      # Playwright Automated Runner (CLI / Port 6000)
 │
 ├── data/                              # Host-mounted volume directory (stores events.csv)
-├── docker-compose.yml                 # (To be implemented in Phase 5)
-└── package.json                       # Root monorepo workspace configuration
+├── test/                              # Local OpenSnowcat Collector (Docker + Node emulator on :8080)
+├── docker-compose.yml                 # Multi-service Docker Compose orchestration
+└── package.json                       # Root monorepo scripts & orchestration commands
 ```
 
 ### Benefits of the `apps/` Isolation:
 1. **Isolated Runtimes & Dependencies:** Eliminates version conflicts between frontend (React 19 / Vite) and backend (Next.js 15+), as well as Fastify and Playwright.
-2. **Independent Testing:** Each service runs its own targeted unit and integration tests (`npm --workspace=apps/simple-collector test`).
+2. **Independent Testing:** Each service runs its own targeted unit and integration tests (`npm --prefix apps/simple-collector test`), or all together from the root (`npm test`).
 3. **Dedicated Docker Contexts:** Each application in `apps/` builds into an isolated, lean container without unnecessary dependencies from other services (detailed in [modules/docker.md](modules/docker.md)).
+
+### Root Single-Command Scripts (`package.json`):
+From the repository root, you can build, type-check, test, or run all services with a single command:
+
+```bash
+# Type-check all 4 applications
+npm run type-check
+
+# Build all 4 applications
+npm run build
+
+# Run all unit and integration tests across all 4 applications
+npm test
+
+# Start only the local OpenSnowcat Collector on port 8080
+npm run snowcat
+
+# Start OpenSnowcat (:8080), Simple Collector (:5000), Backend Producer (:4000), and Frontend Producer (:3000) locally
+npm run dev
+
+# Execute Test Bot against running local services
+npm run bot -- --iterations 10 --concurrency 2
+
+# Start all 4 services (including OpenSnowcat :8080) in background, wait for health checks, and run Test Bot E2E locally
+npm run e2e -- --iterations 10 --concurrency 2
+
+# Start all containerized services via Docker Compose
+npm run up
+
+# Build, start all containers, and run the automated Test Bot E2E suite
+npm run e2e:docker
+```
 
 ---
 

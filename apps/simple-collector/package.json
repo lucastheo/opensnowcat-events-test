@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=4",
     "test:watch": "vitest"
   },
   "dependencies": {
